@@ -1,4 +1,11 @@
-Gastmo
-======
+# Gastmo's A Software To Manage Orders
 
-Gastmo's A Software To Manage Orders è un modulo di MatCMS per gestire gli ordini di un GAS.
+Gastmo è un modulo di [MatCMS](http://www.matriz.it/projects/matcms/ "Matriz | Projects | MatCMS") che permette di gestire gli ordini di un GAS (Gruppo d'Acquisto Solidale).
+
+## Altre informazioni
+
+[MatCMS - Matriz.it](http://www.matriz.it/projects/gastmo/ "Matriz | Projects | Gastmo")
+
+## Credits
+
+Mattia at [Matriz.it](http://www.matriz.it/) (info@matriz.it)
