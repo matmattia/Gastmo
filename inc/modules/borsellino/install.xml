@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+	<db>CREATE TABLE borsellino (
+		id SERIAL NOT NULL,
+		user INTEGER NOT NULL,
+		date DATETIME NOT NULL DEFAULT NOW(),
+		descr TEXT NOT NULL,
+		income DOUBLE PRECISION NOT NULL DEFAULT 0,
+		outflow DOUBLE PRECISION NOT NULL DEFAULT 0
+	);
+	ALTER TABLE borsellino ADD CONSTRAINT borsellino_id PRIMARY KEY (id);</db>
+</install>
