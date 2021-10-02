@@ -39,11 +39,11 @@ class Gastmo extends Module {
 	 */
 	public function getAdminSections() {
 		return array(
-			array('url' => 'list_order', 'title' => 'Gestione Ordini', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'magazziniere', 'contabile'), 'order' => 1),
-			array('url' => 'list_category', 'title' => 'Gestione Categorie', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'contabile'), 'order' => 2),
-			array('url' => 'list_product', 'title' => 'Gestione Prodotti', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'contabile'), 'order' => 3),
-			array('url' => 'list_producttype', 'title' => 'Gestione Tipi Prodotto', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'contabile'), 'order' => 4),
-			array('url' => 'list_usergroup', 'title' => 'Gestione Gruppi', 'levels' => array('admin', 'subadmin'), 'order' => 5),
+			array('url' => 'list_order', 'title' => 'Ordini', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'magazziniere', 'contabile'), 'fontawesome' => 'shopping-cart', 'order' => 1),
+			array('url' => 'list_category', 'title' => 'Categorie Ordini', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'contabile'), 'fontawesome' => 'tags', 'order' => 2),
+			array('url' => 'list_product', 'title' => 'Prodotti Ordini', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'contabile'), 'fontawesome' => 'carrot', 'order' => 3),
+			array('url' => 'list_producttype', 'title' => 'Tipi Prodotto', 'levels' => array('admin', 'subadmin', 'gestione_ordini', 'contabile'), 'fontawesome' => 'info-circle', 'order' => 4),
+			array('url' => 'list_usergroup', 'title' => 'Gruppi', 'levels' => array('admin', 'subadmin'), 'fontawesome' => 'people-carry', 'order' => 5),
 			array('url' => 'list_stats', 'title' => 'Statistiche', 'levels' => array('admin', 'subadmin', 'contabile'), 'fontawesome' => 'chart-bar', 'order' => 6)
 		);
 	}

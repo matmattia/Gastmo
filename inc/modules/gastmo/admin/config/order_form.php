@@ -79,7 +79,10 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 		if ($u->get('level') == 'gestione_ordini' && $o->get('user_group') != 0 && !in_array($o->get('user_group'), $user_groups)) {
 			redirect('/admin/index.php?page=list_order');
 		}
+		$is_open = $o->get('status') == Order::STATUS_OPEN;
 		unset($o);
+	} else {
+		$is_open = true;
 	}
 	$users = $u->getList(array(
 		'select' => array(
@@ -126,7 +129,8 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 			$groups
 		))
 	), array(
-		array('field' => 'shipping_cost', 'title' => 'Spese di spedizione', 'type' => 'number', 'attributes' => array('step' => 0.01)),
+		array('field' => 'shipping_cost', 'title' => 'Spese di spedizione', 'type' => 'number', 'attributes' => array('step' => 0.01))
+	), $is_open ? array(
 		array('field' => 'csv', 'title' => 'CSV di importazione', 'type' => 'file', 'check' => array('type' => '*.csv'), 'description' => $edit ?
 			'Ricaricando un altro file verranno cancellati e sovrascritti tutti i prodotti presenti in questo ordine.'
 			: ''),
@@ -134,7 +138,8 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 		array('field' => 'csv_fields', 'title' => 'Campi del file CSV', 'type' => 'custom', 'value' => printHtmlTag('ol', implode('', $csv_fields_lis), array(
 			'type' => 'A',
 			'id' => 'order-csv-fields-list'
-		))),
+		)))
+	) : array(), array(
 		array('field' => 'export', 'title' => 'Esportazione', 'type' => 'hidden'),
 		array('field' => 'status', 'title' => 'Stato', 'type' => 'radio', 'value' => array(
 			array('value' => Order::STATUS_OPEN, 'label' => 'Aperto'),
@@ -143,7 +148,7 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 		)),
 		array('field' => 'online', 'title' => 'Online', 'type' => 'onoff')
 	));
-	unset($users, $groups);
+	unset($users, $groups, $is_open);
 	ob_start();
 	?>
 	<script type="text/javascript">
