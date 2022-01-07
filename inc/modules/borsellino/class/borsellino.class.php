@@ -105,9 +105,9 @@ class BorsellinoView extends Borsellino {
 	public function __construct($id = 0) {
 		parent::__construct();
 		$this->table = 'borsellino_view';
+		$this->checkView();
 		$this->fields['from'] = array('type' => 'text', 'title' => 'Provenienza');
 		$this->setByParams(array('id' => $id, 'from' => 'borsellino'));
-		$this->checkView();
 	}
 	
 	/**
@@ -235,7 +235,6 @@ class BorsellinoView extends Borsellino {
 	 */
 	private function checkView($force = false) {
 		$res = false;
-		//$force = true;
 		if (\DB::transaction('in_transaction') || (!$force && \DB::tableExists($this->table))) {
 			$res = true;
 		} else {
@@ -393,9 +392,9 @@ class BorsellinoUserView extends \UserView {
 	public function __construct($id = 0) {
 		parent::__construct();
 		$this->table = 'borsellino_users_view';
+		$this->checkView();
 		$this->fields['total'] = array('type' => 'number', 'title' => 'Totale');
 		$this->setByParams(array('id' => $id));
-		$this->checkView();
 	}
 	
 	/**
@@ -411,28 +410,31 @@ class BorsellinoUserView extends \UserView {
 		} else {
 			$objUser = new \UserView();
 			$users_table = $objUser->getTable();
+			$objBorsellinoView = new BorsellinoView();
+			$borsellino_view = $objBorsellinoView->getTable();
+			unset($objBorsellinoView);
 			$view = \DB::quoteIdentifier($this->table);
 			$res = \DB::query('DROP VIEW IF EXISTS '.$view)
 				&& \DB::query('CREATE VIEW '.$view.' AS '.$objUser->getSql(array(
 					'select' => array(
 						array('value' => $users_table.'.*', 'no_quote' => true),
-						array('value' => 'SUM((CASE WHEN borsellino_view.income IS NULL THEN 0 ELSE borsellino_view.income END) - (CASE WHEN borsellino_view.outflow IS NULL THEN 0 ELSE borsellino_view.outflow END))', 'no_quote' => true, 'as' => 'total')
+						array('value' => 'SUM((CASE WHEN '.$borsellino_view.'.income IS NULL THEN 0 ELSE '.$borsellino_view.'.income END) - (CASE WHEN '.$borsellino_view.'.outflow IS NULL THEN 0 ELSE '.$borsellino_view.'.outflow END))', 'no_quote' => true, 'as' => 'total')
 					),
 					'join' => array(
-						'borsellino_view' => array('type' => 'left', 'cond' => array('borsellino_view.user', $users_table.'.id'))
+						$borsellino_view => array('type' => 'left', 'cond' => array($borsellino_view.'.user', $users_table.'.id'))
 					),
 					'where' => array(
 						'groups' => array(
 							array(
 								array('field' => $users_table.'.online', 'value' => 1, 'operator' => 'OR'),
-								array('field' => 'borsellino_view.income', 'match' => '<>', 'operator' => 'OR'),
-								array('field' => 'borsellino_view.outflow', 'match' => '<>', 'operator' => 'OR')
+								array('field' => $borsellino_view.'.income', 'match' => '<>', 'operator' => 'OR'),
+								array('field' => $borsellino_view.'.outflow', 'match' => '<>', 'operator' => 'OR')
 							)
 						)
 					),
 					'group' => array($users_table.'.id')
 				)));
-			unset($view, $objUser, $users_table);
+			unset($view, $objUser, $users_table, $borsellino_view);
 		}
 	}
 }
