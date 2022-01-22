@@ -9,12 +9,21 @@ if (isset($_GET['import'])) {
 			'Causale',
 			'Entrate'
 		));
+		$regexp_causale = array(
+			'pattern' => '/RICARICA([\s]+)BORSELLINO([\s]+)([0-9]+)/i',
+			'id_position' => 3
+		);
+		$new_regexp_causale = \Hook::run('borsellino_gastmo_import_regexp', array($regexp_causale), true);
+		if (is_array($new_regexp_causale)) {
+			$regexp_causale = array_merge($regexp_causale, $new_regexp_causale);
+		}
+		unset($new_regexp_causale);
 		$borsellino = new \Borsellino\Borsellino();
 		foreach ($csv as $v) {
 			if (is_string($v['Causale']) && trim($v['Causale']) !== '') {
 				$income = floatval(str_replace(',', '.', preg_replace('/([^0-9,]+)/', '', $v['Entrate'])));
 				$m = array();
-				if (preg_match('/RICARICA([\s]+)BORSELLINO([\s]+)([0-9]+)/i', $v['Causale'], $m)) {
+				if (preg_match($regexp_causale['pattern'], $v['Causale'], $m)) {
 					$d = DateTime::createFromFormat('d/m/Y', $v['Data Valuta']);
 					$date = $d === false ? null : $d->format('Y-m-d');
 					unset($d);
@@ -27,14 +36,14 @@ if (isset($_GET['import'])) {
 							'where' => array(
 								array('field' => 'date', 'match' => '>=', 'value' => $date.' 00:00:00'),
 								array('field' => 'date', 'match' => '<=', 'value' => $date.' 23:59:59'),
-								array('field' => 'user', 'value' => $m[3]),
+								array('field' => 'user', 'value' => $m[$regexp_causale['id_position']]),
 								array('field' => 'income', 'value' => $income)
 							),
 							'limit' => 1
 						))) == 0,
 						'date' => $date,
 						'descr' => $v['Causale'],
-						'user' => $m[3],
+						'user' => $m[$regexp_causale['id_position']],
 						'income' => $income
 					);
 					unset($date);
@@ -101,7 +110,7 @@ if (isset($_GET['import'])) {
 			}
 		}
 		$fields = array(
-			array('field' => 'csv', 'title' => 'CSV dei movimenti', 'type' => 'file', 'check' => array('type' => '*.csv')),
+			array('field' => 'csv', 'title' => 'CSV dei movimenti', 'type' => 'file', 'attributes' => array('accept' => 'text/csv'), 'check' => array('type' => '*.csv')),
 			array('field' => 'csv_delimiter', 'title' => 'Separatore campi CSV', 'value' => ';', 'attributes' => array('maxlength' => 1))
 		);
 	}
