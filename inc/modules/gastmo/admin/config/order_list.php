@@ -40,11 +40,11 @@ if (isset($_GET['export'])) {
 					'',
 					$products[$j]['qty_package'],
 					$products[$j]['um'],
-					$products[$j]['price'],
+					is_numeric($products[$j]['price']) ? str_replace('.', ',', floatval($products[$j]['price'])) : '',
 					$products[$j]['maker'],
 					$products[$j]['location'],
-					$products[$j]['vat'],
-					$products[$j]['package_price'],
+					is_numeric($products[$j]['vat']) ? str_replace('.', ',', floatval($products[$j]['vat'])) : '',
+					is_numeric($products[$j]['package_price']) ? str_replace('.', ',', floatval($products[$j]['package_price'])) : '',
 					$products[$j]['note']
 				);
 			}
