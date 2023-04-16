@@ -3,12 +3,46 @@ $objUser = new \UserView();
 if (isset($_GET['import'])) {
 	$no_check_post_form = true;
 	if (isset($_FILES['csv']) && isset($_FILES['csv']['error']) && $_FILES['csv']['error'] == UPLOAD_ERR_OK) {
+		$keys = array(
+			'date' => 'valuta',
+			'descr' => 'descrizione',
+			'income' => 'avere'
+		);
+		$csv = array();
+		try {
+			$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($_FILES['csv']['tmp_name']);
+			if (is_object($spreadsheet)) {
+				$arr = $spreadsheet->getActiveSheet()->toArray();
+				if (is_array($arr) && !empty($arr)) {
+					$pos = array();
+					$counter = count($arr[0]);
+					for ($i = 0; $i < $counter; $i++) {
+						$k = array_search(strtolower(trim($arr[0][$i])), $keys);
+						if ($k !== false) {
+							$pos[$k] = $i;
+						}
+						unset($k);
+					}
+					$counter = count($arr);
+					for ($i = 1; $i < $counter; $i++) {
+						$row = array();
+						foreach ($keys as $k => $v) {
+							$row[$v] = isset($pos[$k]) && isset($arr[$i][$pos[$k]]) ? $arr[$i][$pos[$k]] : null;
+							unset($k, $v);
+						}
+						$csv[] = $row;
+						unset($row);
+					}
+					unset($i, $counter);
+				}
+				unset($arr);
+			}
+			unset($spreadsheet);
+		} catch (Exception $e) {
+			echo $e->getMessage();
+		}
+		
 		$rows = $wrong_lis = array();
-		$csv = csvToArray($_FILES['csv']['tmp_name'], array(
-			'Data Valuta',
-			'Causale',
-			'Entrate'
-		));
 		$regexp_causale = array(
 			'pattern' => '/RICARICA([\s]+)BORSELLINO([\s]+)([0-9]+)/i',
 			'id_position' => 3
@@ -20,35 +54,36 @@ if (isset($_GET['import'])) {
 		unset($new_regexp_causale);
 		$borsellino = new \Borsellino\Borsellino();
 		foreach ($csv as $v) {
-			if (is_string($v['Causale']) && trim($v['Causale']) !== '') {
-				$income = floatval(str_replace(',', '.', preg_replace('/([^0-9,]+)/', '', $v['Entrate'])));
+			if (is_string($v[$keys['descr']]) && trim($v[$keys['descr']]) !== '') {
+				$income = floatval(str_replace(',', '.', preg_replace('/([^0-9,\.]+)/', '', $v[$keys['income']])));
 				$m = array();
-				if (preg_match($regexp_causale['pattern'], $v['Causale'], $m)) {
-					$d = DateTime::createFromFormat('d/m/Y', $v['Data Valuta']);
+				if (preg_match($regexp_causale['pattern'], $v[$keys['descr']], $m)) {
+					$d = DateTime::createFromFormat('d/m/Y', $v[$keys['date']]);
 					$date = $d === false ? null : $d->format('Y-m-d');
 					unset($d);
-					$income = floatval(str_replace(',', '.', preg_replace('/([^0-9,]+)/', '', $v['Entrate'])));
+					$id_user = preg_replace('/([^0-9]+)/', '', $m[$regexp_causale['id_position']]);
 					$rows[] = array(
-						'sel' => !$date || DB::queryOne($borsellino->getSql(array(
+						'sel' => $date && DB::queryOne($borsellino->getSql(array(
 							'select' => array(
 								array('value' => 'COUNT(*)', 'no_quote' => true)
 							),
 							'where' => array(
 								array('field' => 'date', 'match' => '>=', 'value' => $date.' 00:00:00'),
 								array('field' => 'date', 'match' => '<=', 'value' => $date.' 23:59:59'),
-								array('field' => 'user', 'value' => $m[$regexp_causale['id_position']]),
+								array('field' => 'user', 'value' => $id_user),
 								array('field' => 'income', 'value' => $income)
 							),
 							'limit' => 1
 						))) == 0,
 						'date' => $date,
-						'descr' => $v['Causale'],
-						'user' => $m[$regexp_causale['id_position']],
-						'income' => $income
+						'descr' => $v[$keys['descr']],
+						'user' => $id_user,
+						'income' => $income,
+						'__tr_attributes' => $date ? array() : array('class' => 'table-warning')
 					);
-					unset($date);
+					unset($date, $id_user);
 				} else if ($income > 0) {
-					$wrong_lis[] = printHtmlTag('li', html($v['Data Valuta']).' &mdash; '.html($v['Causale']));
+					$wrong_lis[] = printHtmlTag('li', html($v[$keys['date']]).' &mdash; '.html($v[$keys['descr']]));
 				}
 				unset($m, $income);
 			}
@@ -110,7 +145,7 @@ if (isset($_GET['import'])) {
 			}
 		}
 		$fields = array(
-			array('field' => 'csv', 'title' => 'CSV dei movimenti', 'type' => 'file', 'attributes' => array('accept' => 'text/csv'), 'check' => array('type' => '*.csv')),
+			array('field' => 'csv', 'title' => 'CSV/Excel dei movimenti', 'type' => 'file', 'attributes' => array('accept' => 'text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet'), 'check' => array('type' => '*.csv')),
 			array('field' => 'csv_delimiter', 'title' => 'Separatore campi CSV', 'value' => ';', 'attributes' => array('maxlength' => 1))
 		);
 	}

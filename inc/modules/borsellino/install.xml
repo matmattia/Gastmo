@@ -9,4 +9,5 @@
 		outflow DOUBLE PRECISION NOT NULL DEFAULT 0
 	);
 	ALTER TABLE borsellino ADD CONSTRAINT borsellino_id PRIMARY KEY (id);</db>
+	<composer>require phpoffice/phpspreadsheet</composer>
 </install>

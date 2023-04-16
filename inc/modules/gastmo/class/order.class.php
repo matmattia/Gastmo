@@ -1502,8 +1502,7 @@ class OrderExporter extends Order {
 	 * @return string
 	 */
 	private function exportXLSX($qty, $packages, $type = null) {
-		require_once(_CLASS.'phpexcel/PHPExcel.php');
-		$excel = new \PHPExcel();
+		$excel = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
 		$excel->getProperties()
 			->setTitle($this->get('title'))
 			->setCreator('Gastmo')
@@ -1593,16 +1592,16 @@ class OrderExporter extends Order {
 					$styles = array(
 						'borders' => array(
 							'borders' => array(
-								'allborders' => array(
-									'style' => \PHPExcel_Style_Border::BORDER_THIN,
+								'outline' => array(
+									'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
 									'color' => array('rgb' => '008000')
 								)
 							)
 						),
 						'big_title' => array(
 							'alignment' => array(
-								'horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
-								'vertical' => \PHPExcel_Style_Alignment::VERTICAL_CENTER
+								'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+								'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
 							),
 							'font' => array(
 								'bold' => true,
@@ -1611,34 +1610,34 @@ class OrderExporter extends Order {
 						),
 						'header' => array(
 							'fill' => array(
-								'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-								'color' => array('rgb' => '92D050')
+								'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+								'startColor' => array('rgb' => '92D050')
 							)
 						),
 						'ordered' => array(
 							'fill' => array(
-								'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-								'color' => array('rgb' => 'EBF1DE')
+								'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+								'startColor' => array('rgb' => 'EBF1DE')
 							)
 						),
 						'to_order' => array(
 							'fill' => array(
-								'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-								'color' => array('rgb' => 'FFF1C4')
+								'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+								'startColor' => array('rgb' => 'FFF1C4')
 							)
 						),
 						'tot_order' => array(
 							'fill' => array(
-								'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-								'color' => array('rgb' => 'FFC7C9')
+								'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+								'startColor' => array('rgb' => 'FFC7C9')
 							)
 						)
 					);
 					foreach (array('header', 'ordered', 'to_order', 'tot_order') as $v) {
 						$styles[$v] = array_merge($styles[$v], $styles['borders'], array(
 							'alignment' => array(
-								'horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
-								'vertical' => \PHPExcel_Style_Alignment::VERTICAL_CENTER,
+								'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+								'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
 								'wrap' => true
 							)
 						));
@@ -1650,8 +1649,8 @@ class OrderExporter extends Order {
 					$sheet->setCellValue('A2', _SITETITLE);
 					$sheet->getStyle('A2')->applyFromArray(array_merge($styles['big_title'], array(
 						'fill' => array(
-							'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-							'color' => array('rgb' => 'FFFF00')
+							'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+							'startColor' => array('rgb' => 'FFFF00')
 						)
 					)));
 					$sheet->getRowDimension('4')->setRowHeight(30);
@@ -1681,9 +1680,9 @@ class OrderExporter extends Order {
 					$num = 1;
 					$col = 5;
 					foreach ($users as $k => $v) {
-						$col_1 = \PHPExcel_Cell::stringFromColumnIndex($col - 1);
-						$col_2 = \PHPExcel_Cell::stringFromColumnIndex($col);
-						$col_3 = \PHPExcel_Cell::stringFromColumnIndex($col + 1);
+						$col_1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col - 1);
+						$col_2 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+						$col_3 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1);
 						
 						$sheet->mergeCells($col_1.'2:'.$col_3.'2');
 						$sheet->setCellValue($col_1.'2', $num);
@@ -1723,10 +1722,10 @@ class OrderExporter extends Order {
 					unset($num);
 					
 					$sheet->getStyle('A4:D4')->applyFromArray($styles['header']);
-					$sheet->getStyle('E3:'.\PHPExcel_Cell::stringFromColumnIndex($col - 3).'3')->applyFromArray($styles['header']);
+					$sheet->getStyle('E3:'.\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col - 3).'3')->applyFromArray($styles['header']);
 					$sheet->setCellValue('D'.$tot_row, 'Totali');
 					$sheet->getStyle('D'.$tot_row)->applyFromArray($styles['header']);
-					$sheet->getStyle('B5:'.\PHPExcel_Cell::stringFromColumnIndex($col - 2).$tot_row)->getAlignment()->setHorizontal(\PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+					$sheet->getStyle('B5:'.\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col - 2).$tot_row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 					unset($col, $tot_row, $styles);
 					
 					$excel->getActiveSheet()->freezePane('E5');
@@ -1742,9 +1741,9 @@ class OrderExporter extends Order {
 					foreach ($users as $k => $v) {
 						foreach ($v['products'] as $v2) {
 							if (is_string($v2['product_id']) && substr($v2['product_id'], 0, 1) == 'X' && $v2['product_new_quantity'] > 0 && !isset($x_cols[$v2['product_id']])) {
-								$x_cols[$v2['product_id']] = \PHPExcel_Cell::stringFromColumnIndex((empty($x_cols)
+								$x_cols[$v2['product_id']] = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex((empty($x_cols)
 									? 5
-									: \PHPExcel_Cell::columnIndexFromString(max($x_cols))));
+									: \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(max($x_cols))));
 								$sheet->setCellValue($x_cols[$v2['product_id']].'1', $v2['product_name']);
 							}
 							unset($v2);
@@ -1760,8 +1759,8 @@ class OrderExporter extends Order {
 					}
 					$sheet->getStyle('A1:'.(empty($x_cols) ? 'D' : max($x_cols)).'1')->applyFromArray(array(
 						'alignment' => array(
-							'horizontal' => \PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
-							'vertical' => \PHPExcel_Style_Alignment::VERTICAL_CENTER,
+							'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+							'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
 							'wrap' => true
 						),
 						'font' => array(
@@ -1796,10 +1795,10 @@ class OrderExporter extends Order {
 					$sheet->getProtection()->setSheet(true);
 					$sheet->getStyle('C2:C'.$row)->applyFromArray(array(
 						'fill' => array(
-							'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-							'color' => array('rgb' => 'FFFF99')
+							'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+							'startColor' => array('rgb' => 'FFFF99')
 						)
-					))->getProtection()->setLocked(\PHPExcel_Style_Protection::PROTECTION_UNPROTECTED);
+					))->getProtection()->setLocked(\PhpOffice\PhpSpreadsheet\Style\Protection::PROTECTION_UNPROTECTED);
 					$sheet->getStyle('C2:'.(empty($x_cols) ? 'D' : max($x_cols)).$row)->getNumberFormat()->setFormatCode('[$€ ]#,##0.00_-');
 					unset($x_cols, $row, $sheet);
 				break;
@@ -1830,10 +1829,10 @@ class OrderExporter extends Order {
 						foreach (array('D'.$row.':F'.$row, 'H'.$row.':I'.$row) as $cells) {
 							$products_sheet->getStyle($cells)->applyFromArray(array(
 								'fill' => array(
-									'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-									'color' => array('rgb' => 'FFFF99')
+									'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+									'startColor' => array('rgb' => 'FFFF99')
 								)
-							))->getProtection()->setLocked(\PHPExcel_Style_Protection::PROTECTION_UNPROTECTED);
+							))->getProtection()->setLocked(\PhpOffice\PhpSpreadsheet\Style\Protection::PROTECTION_UNPROTECTED);
 							unset($cells);
 						}
 						$products_sheet->getStyle('F'.$row.':G'.$row)->getNumberFormat()->setFormatCode('[$€ ]#,##0.00_-');
@@ -1885,17 +1884,17 @@ class OrderExporter extends Order {
 							if ($j % 2 == 0) {
 								$sheet->getStyle('A'.$row.':H'.$row)->applyFromArray(array(
 									'fill' => array(
-										'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-										'color' => array('rgb' => 'CFE7F5')
+										'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+										'startColor' => array('rgb' => 'CFE7F5')
 									)
 								));
 							}
 							$sheet->getStyle('F'.$row)->applyFromArray(array(
 								'fill' => array(
-									'type' => \PHPExcel_Style_Fill::FILL_SOLID,
-									'color' => array('rgb' => 'FFFF99')
+									'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+									'startColor' => array('rgb' => 'FFFF99')
 								)
-							))->getProtection()->setLocked(\PHPExcel_Style_Protection::PROTECTION_UNPROTECTED);
+							))->getProtection()->setLocked(\PhpOffice\PhpSpreadsheet\Style\Protection::PROTECTION_UNPROTECTED);
 							$sheet->getStyle('G'.$row.':H'.$row)->getNumberFormat()->setFormatCode('[$€ ]#,##0.00_-');
 							$row++;
 						}
@@ -1919,7 +1918,7 @@ class OrderExporter extends Order {
 			unset($products, $users);
 		}
 		unset($counter, $carts);
-		$objWriter = \PHPExcel_IOFactory::createWriter($excel, 'Excel2007');
+		$objWriter = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($excel, 'Xlsx');
 		do {
 			$f = _CACHE.'export_'.md5(mt_rand()).'.xlsx';
 		} while (file_exists($f));
