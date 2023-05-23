@@ -96,7 +96,9 @@
 						<td class="title"><?php echo html($v['title']);?></td>
 						<td><?php echo html($v['um']);?></td>
 						<td><?php echo floatval($v['qty']);?></td>
-						<td><?php echo floatval($v['export_qty']);?></td>
+						<?php if (!$is_delivered) : ?>
+							<td><?php echo floatval($v['export_qty']);?></td>
+						<?php endif;?>
 						<td><?php echo printMoney($v['price']);?></td>
 					</tr>
 				<?php endforeach;?>
