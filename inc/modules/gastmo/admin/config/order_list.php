@@ -902,17 +902,20 @@ if (isset($_GET['export'])) {
 	?>
 	<script type="text/javascript">
 	function openMultiExport(id) {
-		var ul = new Element('ul');
+		var lis = [];
 		modal.setTitle('Esportazione');
 		<?php $order = new OrderExporter();?>
 		<?php $export_types = $order->getExportTypes();?>
 		<?php foreach ($export_types as $k => $v) : ?>
-			new Element('li').adopt(new Element('a', {
-				'href': '?page=edit_order&id=' + id + '&download_export=<?php echo rawurlencode($k);?>#export',
-				'html': '<?php echo html($v['title']);?>'
-			})).inject(ul);
+			lis.push({
+				'tag': 'li',
+				'children': [{'tag': 'a', 'attributes': {
+					'href': '?page=edit_order&id=' + id + '&download_export=<?php echo rawurlencode($k);?>#export',
+					'html': '<?php echo html($v['title']);?>'
+				}}]
+			});
 		<?php endforeach;?>
-		modal.setContent(ul);
+		modal.setContent(admin.createElement('ul', null, null, lis));
 		modal.open();
 	}
 	</script>
