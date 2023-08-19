@@ -3,9 +3,9 @@
 	<?php $div = ceil(12 / count($totals));?>
 	<?php foreach ($totals as $v) : ?>
 		<div class="col-xs-<?php echo max($div, 6);?> col-sm-<?php echo max($div, 3);?>">
-			<section class="panel panel-default">
-				<div class="panel-heading"><h1 class="h2 panel-title"><?php echo html($v['title']);?></h1></div>
-				<div class="panel-body">
+			<section class="card">
+				<h1 class="card-header h2"><?php echo html($v['title']);?></h1>
+				<div class="card-body">
 					<p class="h2 text-center<?php if ($v['value'] < 0) : ?> text-danger<?php endif;?>"><?php echo number_format($v['value'], 2, ',', '.');?> €</p>
 				</div>
 			</section>
@@ -40,10 +40,8 @@
 	</tbody>
 </table>
 <?php if ($pages > 1) : ?>
-	<nav aria-label="Paginazione">
-		<ul class="pager">
-			<?php if ($page > 1) : ?><li class="previous"><a href="/borsellino/<?php if ($page > 2) : ?><?php echo $page - 1;?>/<?php endif;?>"><span aria-hidden="true">&larr;</span> Successivi</a></li><?php endif;?>
-			<?php if ($page < $pages) : ?><li class="next"><a href="/borsellino/<?php echo $page + 1;?>/">Precedenti <span aria-hidden="true">&rarr;</span></a></li><?php endif;?>
-		</ul>
+	<nav class="row justify-content-between" aria-label="Paginazione">
+		<?php if ($page > 1) : ?><div class="col text-start"><a href="/borsellino/<?php if ($page > 2) : ?><?php echo $page - 1;?>/<?php endif;?>" class="btn btn-outline-primary"><i class="bi bi-chevron-left" aria-hidden="true"></i> Successivi</a></div><?php endif;?>
+		<?php if ($page < $pages) : ?><div class="col text-end"><a href="/borsellino/<?php echo $page + 1;?>/" class="btn btn-outline-primary">Precedenti <i class="bi bi-chevron-right" aria-hidden="true"></i></a></div><?php endif;?>
 	</nav>
 <?php endif;?>
