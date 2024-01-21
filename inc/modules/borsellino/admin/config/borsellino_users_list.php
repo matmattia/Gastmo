@@ -35,24 +35,20 @@ ob_start();
 var borsellino = {
 	'calcTotals': function(id) {
 		modal.setTitle('Totali');
-		modal.setLoading();
-		modal.open();
-		new Request.JSON({
+		modal.openLoading();
+		admin.ajaxOperation({
 			'url': _ROOT + 'index.php?page=list_borsellino_users',
 			'data': {
 				'calc_totals': id
-			},
-			'onComplete': function(d) {
-				if (d && d.ok && d.ok == 1) {
-					modal.setContent(d.html);
-				} else {
-					modal.close();
-				}
+			}
+		}, {
+			'onSuccess': function(d) {
+				modal.setContent(d.html);
 			},
 			'onError': function() {
 				modal.close();
 			}
-		}).send();
+		});
 	}
 };
 </script>
