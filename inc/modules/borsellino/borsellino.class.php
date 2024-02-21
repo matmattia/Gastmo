@@ -25,6 +25,8 @@ class Borsellino extends Module {
 		
 		$this->addHook('gastmo_order_save_cart_begin', array($this, 'checkSaveCartBegin'));
 		$this->addHook('gastmo_order_save_cart_end', array($this, 'checkSaveCartEnd'));
+		$this->addHook('gastmo_order_archive', array($this, 'orderArchive'));
+		$this->addHook('cron', array($this, 'checkArchivedOrdersTotals'));
 	}
 	
 	/**
@@ -124,5 +126,26 @@ class Borsellino extends Module {
 			unset($tot);
 		}
 		return $check;
+	}
+	
+	/**
+	 * Reset dei totali degli ordini archiviati dopo un'archiviazione
+	 * @access public
+	 * @param boolean $res risultato precedente
+	 * @param integer $order ID dell'ordine
+	 * @return boolean
+	 */
+	public function orderArchive($res, $order) {
+		if ($res) {
+			$objOrdersArchived = new \Borsellino\BorsellinoUserArchivedOrdersTotals();
+			$res = $objOrdersArchived->checkUsers(\Gastmo\Order::getUsers($order), true);
+			unset($objOrdersArchived);
+		}
+		return $res;
+	}
+	
+	public function checkArchivedOrdersTotals() {
+		$objArchivedOrdersTotals = new \Borsellino\BorsellinoUserArchivedOrdersTotals();
+		$objArchivedOrdersTotals->checkUsers();
 	}
 }

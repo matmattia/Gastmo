@@ -101,19 +101,6 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 		'order' => array('title' => 'ASC')
 	));
 	unset($ug, $user_groups);
-	
-	$csv_fields_lis = array();
-	foreach (Order::getCsvDefaultFields(array('empty_label' => 'Campo vuoto')) as $v) {
-		$csv_fields_lis[] = printHtmlTag('li', printHtmlTag('input', false, array(
-			'type' => 'hidden',
-			'name' => 'csv_fields[]',
-			'value' => $v['field']
-		)).html($v['label']), array(
-			'draggable' => 'true',
-			'style' => 'cursor:move;'
-		));
-	}
-	
 	$fields = array_merge(array(
 		array('field' => 'title', 'title' => 'Titolo'),
 		array('field' => 'descr', 'title' => 'Note', 'type' => 'textarea'),
@@ -134,11 +121,7 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 		array('field' => 'csv', 'title' => 'CSV di importazione', 'type' => 'file', 'check' => array('type' => '*.csv'), 'description' => $edit ?
 			'Ricaricando un altro file verranno cancellati e sovrascritti tutti i prodotti presenti in questo ordine.'
 			: ''),
-		array('field' => 'csv_delimiter', 'title' => 'Separatore campi CSV', 'value' => ';', 'attributes' => array('maxlength' => 1)),
-		array('field' => 'csv_fields', 'title' => 'Campi del file CSV', 'type' => 'custom', 'value' => printHtmlTag('ol', implode('', $csv_fields_lis), array(
-			'type' => 'A',
-			'id' => 'order-csv-fields-list'
-		)))
+		array('field' => 'csv_delimiter', 'title' => 'Separatore campi CSV', 'value' => ';', 'attributes' => array('maxlength' => 1))
 	) : array(), array(
 		array('field' => 'export', 'title' => 'Esportazione', 'type' => 'hidden'),
 		array('field' => 'status', 'title' => 'Stato', 'type' => 'radio', 'value' => array(
@@ -149,54 +132,9 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 		array('field' => 'online', 'title' => 'Online', 'type' => 'onoff')
 	));
 	unset($users, $groups, $is_open);
-	ob_start();
-	?>
-	<script type="text/javascript">
-	var order_form = {
-		'moving_csv_field': null,
-		'init': function() {
-			var list = document.getElementById('order-csv-fields-list'), lis = null, l = 0, i = 0;
-			if (list) {
-				lis = list.getElementsByTagName('li');
-				l = lis.length;
-				for (i = 0; i < l; i++) {
-					lis[i].addEventListener('dragstart', function(e) {
-						e.dataTransfer.dropEffect = 'move';
-						e.dataTransfer.setData('text/plain', null);
-						order_form.moving_csv_field = e.target;
-					});
-					lis[i].addEventListener('dragover', function(e) {
-						var is_before = false, c = order_form.moving_csv_field.previousSibling;
-						while (c) {
-							if (c === e.target) {
-								is_before = true;
-								break;
-							}
-							c = c.previousSibling;
-						}
-						if (is_before) {
-							e.target.parentNode.insertBefore(order_form.moving_csv_field, e.target);
-						} else {
-							e.target.parentNode.insertBefore(order_form.moving_csv_field, e.target.nextSibling);
-						}
-					});
-					lis[i].addEventListener('dragend', function() {
-						order_form.moving_csv_field = null;
-					});
-				}
-			}
-		}
-	};
-	
-	document.addEventListener('DOMContentLoaded', function() {
-		order_form.init();
-	});
-	</script>
-	<?php
-	$page->setHeadInclude(ob_get_contents());
-	ob_end_clean();
 	if ($edit) {
 		$order = new OrderExporter($_GET['id']);
+		$form_options = array('disabled' => !Order::canEdit($order));
 		$fields[] = array('field' => 'link', 'title' => 'Link', 'type' => 'custom', 'value' => '<a href="'.Order::getURL($order->get('id')).'">Visualizza ordine</a>');
 		$o = printHtmlTag('p', \Admin::printIcon('add', array(
 			'a' => array('href' => 'index.php?page=list_order&create='.$order->get('id'), 'name' => 'export'),
@@ -229,7 +167,7 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 					.$export_tds
 					.printHtmlTag('td', \Admin::printIcon('refresh', array('a' => array('onclick' => 'order_export.refresh('.$d.', this);return false;'))))
 					.printHtmlTag('td', \Admin::printIcon('add', array('a' => array(
-						'href' => 'index.php?page=list_order&create='.$order->get('id').'&d='.$d,
+						'href' => _ADMINH.'index.php?page=list_order&create='.$order->get('id').'&d='.$d,
 						'title' => 'Nuova esportazione partendo da questa'
 					))))
 					.printHtmlTag('td', printHtmlTag('input', false, array(
@@ -264,35 +202,34 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 			<script type="text/javascript">
 			var order_export = {
 				'refresh': function(d, el) {
-					new Request.JSON({
+					admin.ajaxOperation({
 						'url': _ROOT  + 'index.php?page=edit_order',
-						'method': 'post',
 						'data': {
 							'id': <?php echo $order->get('id');?>,
 							'refresh_export': d
-						},
-						'onComplete': function(res) {
-							if (res && res.ok && res.ok == 1) {
-								window.location.reload();
-							}
 						}
-					}).send();
+					}, {
+						'onSuccess': function() {
+							window.location.reload();
+						}
+					});
 				},
 				'delete': function(d, el) {
 					if (confirm('Sei sicuro di voler cancellare questa esportazione?')) {
-						new Request.JSON({
+						admin.ajaxOperation({
 							'url': _ROOT  + 'index.php?page=edit_order',
-							'method': 'post',
 							'data': {
 								'id': <?php echo $order->get('id');?>,
 								'delete_export': d
-							},
-							'onComplete': function(res) {
-								if (res && res.ok && res.ok == 1) {
-									new Element(el).getParent('tr').dispose();
+							}
+						}, {
+							'onSuccess': function() {
+								var tr = el.closest('tr');
+								if (tr) {
+									tr.remove();
 								}
 							}
-						}).send();
+						});
 					}
 				}
 			};

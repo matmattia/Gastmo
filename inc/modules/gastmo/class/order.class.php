@@ -5,8 +5,8 @@
  * Questo file contiene la classe Order che serve a gestire gli ordini
  * @author Mattia <info@matriz.it>
  * @package MatCMS\Gastmo
- * @link http://www.matriz.it/projects/matcms/ MatCMS
- * @link http://www.matriz.it/projects/gastmo/ Gastmo
+ * @link https://www.matriz.it/projects/matcms/ MatCMS
+ * @link https://www.matriz.it/projects/gastmo/ Gastmo
  */
 
 namespace Gastmo;
@@ -42,6 +42,7 @@ class Order extends \Base {
 			'export' => array('type' => 'text', 'title' => 'Esportazione', 'default' => ''),
 			'export_date' => array('type' => 'integer', 'title' => 'Esportazione', 'check' => array('number'), 'default' => 0),
 			'status' => array('type' => 'integer', 'title' => 'Stato', 'check' => array('number'), 'default' => 0),
+			'archived' => array('type' => 'integer', 'title' => 'Archiviato', 'check' => array('number'), 'default' => 0),
 			'online' => array('type' => 'integer', 'title' => 'Online', 'check' => array('number'), 'default' => 0)
 		);
 		$this->setByParams(array('id' => $id));
@@ -79,6 +80,132 @@ class Order extends \Base {
 	}
 	
 	/**
+	 * Archivia l'ordine
+	 * @access public
+	 * @return boolean
+	 */
+	public function archive() {
+		$res = false;
+		$id = $this->get('id');
+		if (self::canEdit($id)) {
+			$in_transaction = \DB::transaction('in_transaction');
+			if (!$in_transaction) {
+				\DB::transaction('begin');
+			}
+			try {
+				$res = \DB::writerQuery('upd', $this->getTable(), array(
+					'archived' => 1
+				), array(
+					array('field' => 'id', 'value' => $id)
+				));
+				if (!$res) {
+					throw new Exception('Errore nell\'archiviazione dell\'ordine.');
+				}
+				
+				$this->checkArchivedTotals($id, true);
+				
+				$new_res = \Hook::run('gastmo_order_archive', array($res, $id), true);
+				if (is_bool($new_res)) {
+					$res = $new_res;
+				}
+				
+				if (!$in_transaction) {
+					\DB::transaction('commit');
+				}
+			} catch (\Exception $e) {
+				if ($in_transaction) {
+					throw $e;
+				} else {
+					\DB::transaction('rollback');
+				}
+				$res = false;
+			}
+			unset($in_transaction);
+		}
+		unset($id);
+		return $res;
+	}
+	
+	/**
+	 * Se necessario, salva il totale di un ordine archiviato
+	 * @access public
+	 * @param integer $order ID dell'ordine
+	 * @param boolean $force_update stabilisce se forzare l'aggiornamento
+	 * @return boolean
+	 */
+	public function checkArchivedTotals($order, $force_update = false) {
+		$res = false;
+		if (is_numeric($order) && $order > 0) {
+			$res = true;
+			$in_transaction = \DB::transaction('in_transaction');
+			if (!$in_transaction) {
+				\DB::transaction('begin');
+			}
+			try {
+				$not_users = $force_update ? array() : \DB::queryCol(array(
+					'select' => array('user'),
+					'table' => 'orders_totals_archived',
+					'where' => array(
+						array('field' => 'order', 'value' => $order)
+					)
+				));
+				foreach (self::getUsers($order) as $user) {
+					if (!in_array($user, $not_users)) {
+						if (!\DB::writerQuery('rep', 'orders_totals_archived', array(
+							'order' => $order,
+							'user' => $user,
+							'total' => $this->getUserTotal($user, $order)
+						))) {
+							$res = false;
+							throw new Exception('Errore nel salvataggio dei totali dell\'ordine.');
+						}
+					}
+				}
+				
+				if (!$in_transaction) {
+					\DB::transaction('commit');
+				}
+			} catch (\Exception $e) {
+				if ($in_transaction) {
+					throw $e;
+				} else {
+					\DB::transaction('rollback');
+				}
+				$res = false;
+			}
+			unset($in_transaction);
+		}
+		return $res;
+	}
+	
+	/**
+	 * Se necessario, salva i totali degli ordini archiviati
+	 * @access public
+	 * @return boolean
+	 */
+	public function checkAllArchivedTotals() {
+		$res = true;
+		$orders = $this->getListCol('id', array(
+			'where' => array(
+				array('field' => 'archived', 'value' => 1),
+				array('field' => 'id', 'match' => 'NOT IN', 'value' => '('.\DB::createSql(array(
+					'select' => array('order'),
+					'table' => 'orders_totals_archived',
+				)).')', 'value_type' => 'sql')
+			),
+			'order' => array('id' => 'ASC')
+		));
+		foreach ($orders as $order) {
+			if (!$this->checkArchivedTotals($order)) {
+				$res = false;
+			}
+			unset($order);
+		}
+		unset($orders);
+		return $res;
+	}
+	
+	/**
 	 * Cancella l'ordine
 	 * @access public
 	 * @return boolean
@@ -111,6 +238,22 @@ class Order extends \Base {
 	}
 	
 	/**
+	 * Stabilisce se un ordine può essere modificato
+	 * @access public
+	 * @static
+	 * @param integer|Order|array $order ID, oggetto o dati dell'ordine
+	 * @return boolean
+	 */
+	public static function canEdit($order) {
+		$can = !self::getOneData($order, 'archived');
+		$new_can = \Hook::run('gastmo_order_can_edit', array($can, $order), true);
+		if (is_bool($new_can)) {
+			$can = $new_can;
+		}
+		return $can;
+	}
+	
+	/**
 	 * Stabilisce se può essere modificato il valore di "online" di un ordine
 	 * @access public
 	 * @static
@@ -118,8 +261,12 @@ class Order extends \Base {
 	 * @return boolean
 	 */
 	public static function canEditOnline($order) {
-		$can = \Hook::run('gastmo_order_can_edit_online', array(true, $order), true);
-		return is_bool($can) ? $can : true;
+		$can = self::canEdit($order);
+		$new_can = \Hook::run('gastmo_order_can_edit_online', array($can, $order), true);
+		if (is_bool($new_can)) {
+			$can = $new_can;
+		}
+		return $can;
 	}
 	
 	/**
@@ -130,8 +277,12 @@ class Order extends \Base {
 	 * @return boolean
 	 */
 	public static function canDelete($order) {
-		$can = \Hook::run('gastmo_order_can_delete', array(true, $order), true);
-		return is_bool($can) ? $can : true;
+		$can = self::canEdit($order);
+		$new_can = \Hook::run('gastmo_order_can_delete', array($can, $order), true);
+		if (is_bool($new_can)) {
+			$can = $new_can;
+		}
+		return $can;
 	}
 	
 	/**
@@ -664,9 +815,10 @@ class Order extends \Base {
 	 * @static
 	 * @param integer $user ID dell'utente (se 0, utilizza quello dell'utente loggato)
 	 * @param array $params parametri vari
+	 * @param array $pagination paginazione
 	 * @return array
 	 */
-	public static function getUserOrders($user = 0, $params = array()) {
+	public static function getUserOrders($user = 0, $params = array(), &$pagination = array()) {
 		if (!is_numeric($user) || $user <= 0) {
 			$user = \User::getLoggedUser();
 		}
@@ -722,11 +874,15 @@ class Order extends \Base {
 				$params['id_order'][] = 0;
 				$sql['where'][] = array('field' => 'id', 'match' => 'IN', 'value' => $params['id_order']);
 			}
-			if (isset($params['limit']) && is_numeric($params['limit']) && $params['limit'] > 0) {
-				$sql['limit'] = $params['limit'];
-			}
 			$o = new Order();
-			$orders = $o->getList($sql);
+			if (is_array($pagination) && isset($pagination['perpage']) && is_numeric($pagination['perpage']) && $pagination['perpage'] > 0) {
+				$orders = $o->getListPagination($sql, $pagination);
+			} else {
+				if (isset($params['limit']) && is_numeric($params['limit']) && $params['limit'] > 0) {
+					$sql['limit'] = $params['limit'];
+				}
+				$orders = $o->getList($sql);
+			}
 			unset($o, $sql);
 			$counter = count($orders);
 			for ($i = 0; $i < $counter; $i++) {

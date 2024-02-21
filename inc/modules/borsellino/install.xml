@@ -5,9 +5,13 @@
 		user INTEGER NOT NULL,
 		date DATETIME NOT NULL DEFAULT NOW(),
 		descr TEXT NOT NULL,
-		income DOUBLE PRECISION NOT NULL DEFAULT 0,
-		outflow DOUBLE PRECISION NOT NULL DEFAULT 0
+		income DOUBLE PRECISION NULL,
+		outflow DOUBLE PRECISION NULL
 	);
 	ALTER TABLE borsellino ADD CONSTRAINT borsellino_id PRIMARY KEY (id);</db>
-	<composer>require phpoffice/phpspreadsheet</composer>
+	<db>CREATE TABLE borsellino_user_archived_orders_totals (
+		user INTEGER NOT NULL,
+		total DOUBLE PRECISION NULL
+	);
+	ALTER TABLE borsellino_user_archived_orders_totals ADD CONSTRAINT borsellino_user_archived_orders_totals_user PRIMARY KEY (user);</db>
 </install>

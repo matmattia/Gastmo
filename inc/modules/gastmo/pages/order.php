@@ -222,6 +222,11 @@ class OrderPage extends \ModulePage {
 					$title = 'Ordini consegnati';
 					$url .= 'delivered/';
 					$breadcrumb[] = array('url' => $url, 'title' => $title);
+					$pagination = array(
+						'perpage' => 12,
+						'page' => isset($this->params_url[2]) ? $this->params_url[2] : 1
+					);
+					$orders = Order::getUserOrders(null, array('status' => Order::STATUS_DELIVERED), $pagination);
 				} else {
 					$is_delivered = false;
 					$title = 'Ordini';
@@ -232,7 +237,8 @@ class OrderPage extends \ModulePage {
 					'login' => $logged,
 					'is_delivered' => $is_delivered
 				), $is_delivered ? array(
-					'orders' => Order::getUserOrders(null, array('status' => Order::STATUS_DELIVERED))
+					'orders' => $orders,
+					'pagination' => $pagination
 				) : array(
 					'orders' => Order::getUserOrders(null, array('status' => Order::STATUS_OPEN)),
 					'delivering_orders' => Order::getUserOrders(null, array('status' => Order::STATUS_DELIVERING)),

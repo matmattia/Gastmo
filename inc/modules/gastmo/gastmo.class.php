@@ -23,6 +23,8 @@ class Gastmo extends Module {
 	 */
 	public function __construct() {
 		parent::__construct();
+		
+		$this->addHook('cron', array($this, 'checkArchivedOrdersTotals'));
 	}
 	
 	/**
@@ -46,5 +48,15 @@ class Gastmo extends Module {
 			array('url' => 'list_usergroup', 'title' => 'Gruppi', 'levels' => array('admin', 'subadmin'), 'fontawesome' => 'people-carry', 'order' => 5),
 			array('url' => 'list_stats', 'title' => 'Statistiche', 'levels' => array('admin', 'subadmin', 'contabile'), 'fontawesome' => 'chart-bar', 'order' => 6)
 		);
+	}
+	
+	/**
+	 * Se necessario, salva i totali degli ordini archiviati
+	 * @access public
+	 * @return boolean
+	 */
+	public function checkArchivedOrdersTotals() {
+		$order = new \Gastmo\Order();
+		return $order->checkAllArchivedTotals();
 	}
 }

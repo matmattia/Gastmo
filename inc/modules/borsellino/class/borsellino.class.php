@@ -122,6 +122,8 @@ class BorsellinoView extends Borsellino {
 		$tot = 0.0;
 		if (is_numeric($user) && $user > 0) {
 			$user = intval($user);
+			$objOrdersArchived = new BorsellinoUserArchivedOrdersTotals();
+			$objOrdersArchived->checkUser($user);
 			if ($reset_cache || !isset($cache[$user])) {
 				$borsellino_user_view = new BorsellinoUserView($user);
 				$cache[$user] = $borsellino_user_view->exists() ? floatval($borsellino_user_view->get('total')) : $tot;
@@ -250,8 +252,52 @@ class BorsellinoView extends Borsellino {
 			));
 			unset($borsellino);
 			
-			// Ordini con totali fissi
+			// Ordini archiviati con totali fissi
 			$order = new \Gastmo\Order();
+			$sql = array(
+				'select' => array(
+					'orders.id',
+					'orders_totals_archived.user',
+					array('value' => 'orders.shipping_date', 'as' => 'date'),
+					array('value' => 'title', 'as' => 'descr'),
+					array('value' => '0', 'as' => 'income', 'no_quote' => true),
+					array('value' => 'orders_totals_archived.total', 'as' => 'outflow'),
+					array('value' => \DB::quote('order'), 'as' => 'from', 'no_quote' => true)
+				),
+				'join' => array(
+					'orders_totals_archived' => array('orders_totals_archived.order', 'orders.id')
+				),
+				'where' => array(
+					array('field' => 'orders.status', 'value' => \Gastmo\Order::STATUS_DELIVERED),
+					array('field' => 'orders.online', 'value' => 1),
+					array('field' => 'orders.archived', 'value' => 1)
+				)
+			);
+			$new_sql = \Hook::run('borsellino_gastmo_order_sql_view', array($sql));
+			if (is_array($new_sql)) {
+				$sql = $new_sql;
+			}
+			unset($new_sql);
+			$selects[] = $order->getSql($sql);
+			unset($sql);
+			
+			$sql_archived_not_saved = function($user_field) {
+				return array(
+					array('field' => 'orders.archived', 'value' => 0, 'operator' => 'OR'),
+					array('field' => 'orders.id', 'match' => 'NOT IN', 'value' => '('.\DB::createSql(array(
+						'select' => array(
+							'orders_totals_archived.order'
+						),
+						'table' => 'orders_totals_archived',
+						'where' => array(
+							array('field' => 'orders_totals_archived.user', 'value' => $user_field, 'value_type' => 'field')
+						),
+						'group' => array('orders_totals_archived.order')
+					)).')', 'value_type' => 'sql', 'operator' => 'OR')
+				);
+			};
+			
+			// Ordini con totali fissi
 			$sql = array(
 				'select' => array(
 					'orders.id',
@@ -267,7 +313,10 @@ class BorsellinoView extends Borsellino {
 				),
 				'where' => array(
 					array('field' => 'orders.status', 'value' => \Gastmo\Order::STATUS_DELIVERED),
-					array('field' => 'orders.online', 'value' => 1)
+					array('field' => 'orders.online', 'value' => 1),
+					'groups' => array(
+						call_user_func($sql_archived_not_saved, 'orders_totals.user')
+					)
 				)
 			);
 			$new_sql = \Hook::run('borsellino_gastmo_order_sql_view', array($sql));
@@ -304,7 +353,10 @@ class BorsellinoView extends Borsellino {
 							array('field' => 'orders_totals.user', 'value' => 'carts.user', 'value_type' => 'field')
 						),
 						'group' => array('orders_totals.order')
-					)).')', 'value_type' => 'sql')
+					)).')', 'value_type' => 'sql'),
+					'groups' => array(
+						call_user_func($sql_archived_not_saved, 'carts.user')
+					)
 				),
 				'group' => array('orders.id', 'carts.user')
 			);
@@ -338,7 +390,10 @@ class BorsellinoView extends Borsellino {
 							array('field' => 'orders_totals.user', 'value' => 'carts_extras.user', 'value_type' => 'field')
 						),
 						'group' => array('orders_totals.order')
-					)).')', 'value_type' => 'sql')
+					)).')', 'value_type' => 'sql'),
+					'groups' => array(
+						call_user_func($sql_archived_not_saved, 'carts_extras.user')
+					)
 				),
 				'group' => array('orders.id', 'carts_extras.user')
 			);
@@ -412,10 +467,60 @@ class BorsellinoUserView extends \UserView {
 			$users_table = $objUser->getTable();
 			$objBorsellinoView = new BorsellinoView();
 			$borsellino_view = $objBorsellinoView->getTable();
-			unset($objBorsellinoView);
+			$objOrder = new \Gastmo\Order();
+			$objOrdersArchived = new BorsellinoUserArchivedOrdersTotals();
+			
 			$view = \DB::quoteIdentifier($this->table);
 			$res = \DB::query('DROP VIEW IF EXISTS '.$view)
 				&& \DB::query('CREATE VIEW '.$view.' AS '.$objUser->getSql(array(
+					'select' => array(
+						array('value' => $users_table.'.*', 'no_quote' => true),
+						array('value' => 'SUM((CASE WHEN table.income IS NULL THEN 0 ELSE table.income END) - (CASE WHEN table.outflow IS NULL THEN 0 ELSE table.outflow END))', 'no_quote' => true, 'as' => 'total')
+					),
+					'join' => array(
+						'type' => 'left',
+						'table' => array(
+							'cond' => array('table.user', $users_table.'.id'),
+							'table_sql' => $objOrdersArchived->getSql(array(
+								'select' => array(
+									'user',
+									array('value' => '0', 'as' => 'income', 'no_quote' => true),
+									array('value' => 'total', 'as' => 'outflow')
+								)
+							)).' UNION ALL '.$objBorsellinoView->getSql(array(
+								'select' => array(
+									'user',
+									'income',
+									'outflow'
+								),
+								'where' => array(
+									'groups' => array(
+										array(
+											array('field' => 'from', 'match' => '<>', 'value' => 'order', 'operator' => 'OR'),
+											array('field' => 'id', 'match' => 'NOT IN', 'value' => '('.$objOrder->getSql(array(
+												'select' => array('id'),
+												'where' => array(
+													array('field' => 'archived', 'value' => 1)
+												)
+											)).')', 'value_type' => 'sql', 'operator' => 'OR')
+										)
+									)
+								)
+							))
+						)
+					),
+					'where' => array(
+						'groups' => array(
+							array(
+								array('field' => $users_table.'.online', 'value' => 1, 'operator' => 'OR'),
+								array('field' => 'table.income', 'match' => '<>', 'operator' => 'OR'),
+								array('field' => 'table.outflow', 'match' => '<>', 'operator' => 'OR')
+							)
+						)
+					),
+					'group' => array($users_table.'.id')
+				))) && \DB::query('DROP VIEW IF EXISTS '.\DB::quoteIdentifier($this->table.'_2'))
+				&& \DB::query('CREATE VIEW '.\DB::quoteIdentifier($this->table.'_2').' AS '.$objUser->getSql(array(
 					'select' => array(
 						array('value' => $users_table.'.*', 'no_quote' => true),
 						array('value' => 'SUM((CASE WHEN '.$borsellino_view.'.income IS NULL THEN 0 ELSE '.$borsellino_view.'.income END) - (CASE WHEN '.$borsellino_view.'.outflow IS NULL THEN 0 ELSE '.$borsellino_view.'.outflow END))', 'no_quote' => true, 'as' => 'total')
@@ -434,7 +539,8 @@ class BorsellinoUserView extends \UserView {
 					),
 					'group' => array($users_table.'.id')
 				)));
-			unset($view, $objUser, $users_table, $borsellino_view);
+			unset($view, $objUser, $users_table, $objBorsellinoView, $objOrder, $objOrdersArchived);
 		}
+		return $res;
 	}
 }

@@ -42,10 +42,10 @@
 						<td><?php echo floatval($v['actual_qty']);?></td>
 						<td><?php echo printMoney($v['price']);?></td>
 						<td><?php echo printMoney($v['price_total']);?></td>
-						<td class="vote">
+						<td class="vote text-nowrap">
 							<?php if (isset($v['id']) && is_numeric($v['id']) && $v['id'] > 0 && $v['actual_qty'] > 0) : ?>
 								<?php foreach (Order::getLabelVotes() as $i => $l) : ?>
-									<a href="#" data-product="<?php echo intval($v['id']);?>" data-vote="<?php echo $i;?>" data-toggle="tooltip" title="<?php echo html($l);?>" class="vote_<?php echo $i;?>"><span class="glyphicon glyphicon-star<?php if ($v['vote'] < $i) : ?>-empty<?php endif;?>" aria-hidden="true"></span><span class="sr-only">1</span></a>
+									<a href="#" data-product="<?php echo intval($v['id']);?>" data-vote="<?php echo $i;?>" data-toggle="tooltip" title="<?php echo html($l);?>" class="vote_<?php echo $i;?>"><i class="bi bi-star<?php if ($v['vote'] >= $i) : ?>-fill<?php endif;?>" aria-hidden="true"></i><span class="visually-hidden">1</span></a>
 								<?php endforeach;?>
 								<input type="hidden" name="product_vote[<?php echo intval($v['id']);?>]" value="<?php echo intval($v['vote']);?>" />
 							<?php endif;?>
@@ -132,8 +132,8 @@
 				</tr>
 				<?php if ($shippable) : ?>
 					<tr>
-						<td colspan="<?php echo $colspan;?>" class="buttons">
-							<button id="toggle_ordered_products" class="btn btn-default">Mostra prodotti ordinati</button>
+						<td colspan="<?php echo $colspan;?>" class="text-end">
+							<button id="toggle_ordered_products" class="btn btn-secondary">Mostra prodotti ordinati</button>
 							<button id="save_order" class="btn btn-primary">Salva</button>
 						</td>
 					</tr>
@@ -143,8 +143,8 @@
 		<tbody>
 		<?php foreach ($c as $v) : ?>
 			<tr id="category-<?php echo intval($v['id']);?>">
-				<td colspan="<?php echo $colspan;?>" class="title category"><?php echo $v['title'];?> <a href="#category-<?php echo intval($v['id']);?>" class="glyphicon glyphicon-minus-sign"></a>
-			</td></tr>
+				<td colspan="<?php echo $colspan;?>" class="title category position-relative"><?php echo $v['title'];?> <button type="button" data-category="<?php echo intval($v['id']);?>" class="btn btn-link link-light position-absolute top-0 end-0"><i class="bi bi-dash-lg"></i></button></td>
+			</tr>
 			<?php foreach ($v['products'] as $product) : ?>
 				<tr id="product_<?php echo intval($product['id']);?>" itemscope itemtype="http://schema.org/Product" data-product="<?php echo html(json_encode($product));?>" data-category="<?php echo intval($v['id']);?>">
 					<td itemprop="name" class="title<?php if (trim($product['note']) != '') : ?> note" data-toggle="tooltip" title="<?php echo html($product['note']);?>"<?php else : ?>"<?php endif;?><?php if (trim($product['color']) != '') : ?> style="background-color:<?php echo html($product['color']);?>"<?php endif;?>><?php echo html($product['title']);?><?php if (trim($product['product_type']) != '') : ?> <span class="product_type">&mdash;<?php echo html($product['product_type']);?>&mdash;</span><?php endif;?></td>

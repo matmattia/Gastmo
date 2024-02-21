@@ -39,7 +39,7 @@ gastmo = {
 	'saved_request': {},
 	'init': function() {
 		var that = this;
-		$(window).bind('beforeunload', function() {
+		window.addEventListener('beforeunload', function() {
 			var k = null;
 			for (k in that.saved_request) {
 				if (!that.saved_request[k]) {
@@ -80,14 +80,21 @@ gastmo = {
 		this.saved_request[id] = !!saved;
 	},
 	'loading': function(print) {
-		var l = $('#loading');
-		if (l.length == 0) {
-			l = $('<div />').attr('id', 'loading').appendTo($('body'));
+		var l = document.getElementById('loading'), s = null;
+		if (!l) {
+			l = document.createElement('div');
+			l.setAttribute('id', 'loading');
+			l.setAttribute('role', 'status');
+			l.classList.add('spinner-border', 'm-2');
+			s = document.createElement('span');
+			s.classList.add('visually-hidden');
+			s.innerText = 'Loading...';
+			document.body.appendChild(l);
 		}
 		if (print) {
-			l.addClass('animate');
+			l.classList.remove('d-none');
 		} else {
-			l.removeClass('animate');
+			l.classList.add('d-none');
 		}
 	},
 	'toggleButtons': function(buttons, enable) {
@@ -95,6 +102,40 @@ gastmo = {
 		if (buttons.length > 0) {
 			buttons.prop('disabled', !enable);
 		}
+	},
+	'math': function(a, op, b, m) {
+		var n = null, l = 0, i = 0;
+		if (!isNaN(a)) {
+			n = new Big(a);
+			switch (op) {
+				case 'minus':
+				case '-':
+					n = n.minus(b);
+				break;
+				case 'mod':
+				case '%':
+					n = n.mod(b);
+				break;
+				case 'plus':
+				case '+':
+					n = n.plus(b);
+				break;
+				case 'round':
+					n = n.round(b);
+				break;
+				case 'times':
+				case '*':
+					n = n.times(b);
+				break;
+			}
+			if (typeof m == 'object') {
+				l = m.length;
+				for (i = 0; i < l; i++) {
+					n = this.math(n, m[i][0], m[i][1]);
+				}
+			}
+		}
+		return n;
 	}
 },
 
@@ -103,103 +144,128 @@ order = {
 	'base_path': null,
 	'id_order': null,
 	'init': function() {
-		var that = this;
-		$('#order .user_ordered input').change(function() {
-			var inp = $(this);
-				qty = inp.val(),
-				d = null, tot = 0, total_values = null, l = 0, i = 0, v = null;
-			that.resetRow(inp);
-			qty = $.trim(qty) == '' ? 0 : qty.replace(/,/g, '.');
-			if (qty == null || isNaN(qty)) {
-				that.setRowError(inp);
-			} else {
-				qty = parseFloat(qty);
-				inp.closest('td').removeClass('has-error');
-				d = that.getRowData(inp);
-				if (d) {
-					d.ordered += qty - d.user_ordered; 
-					that.setRowValue(inp, 'ordered', d.ordered);
-					that.setRowValue(inp, 'completed', that.getCalcValue(d, 'completed'));
-					that.setRowValue(inp, 'to_complete', that.getCalcValue(d, 'to_complete'));
-					that.setRowValue(inp, 'price_total', Math.round(d.price * qty * 100) / 100);
-					total_values = $('td.price_total');
-					l = total_values.length;
-					for (i = 0; i < l; i++) {
-						v = $(total_values[i]).attr('data-val');
-						if (!isNaN(v)) {
-							tot += parseFloat(v);
-						}
-					}
-					$('#price_total_order').text(that.formatCurrency(tot));
+		var that = this,
+			inps = document.querySelectorAll('#order .user_ordered input'), l = inps.length, i = 0, notes = document.querySelectorAll('#order .note'),
+			save_order = document.getElementById('save_order'), toggle_ordered_products = document.getElementById('toggle_ordered_products'), category_togglers = document.querySelectorAll('#order td.category button');
+		for (i = 0; i < l; i++) {
+			inps[i].addEventListener('change', function() {
+				var qty = this.value, d = null, tot = 0, total_values = null, l = 0, i = 0, v = null;
+				that.resetRow(this);
+				qty = qty.trim() == '' ? 0 : qty.replace(/,/g, '.');
+				if (qty == null || isNaN(qty)) {
+					that.setInputError(this);
 				} else {
-					that.setRowError(inp);
-				}
-			}
-			that.save();
-		}).focus(function() {
-			$(this).closest('tr').addClass('hover');
-		}).blur(function() {
-			$(this).closest('tr').removeClass('hover');
-		});
-		$('#save_order').click(function() {
-			that.save();
-			return false;
-		});
-		$('#toggle_ordered_products').click(function() {
-			var b = $(this), show_ordered = b.data('show-ordered');
-			if (show_ordered) {
-				b.data('show-ordered', false).text('Mostra prodotti ordinati');
-				$('tr[id^="product"]').show();
-			} else {
-				b.data('show-ordered', true).text('Mostra tutti i prodotti');
-				that.toggleButtons(false);
-				$.ajax({
-					'url': that.base_path + '/order/getorderedproducts/' + that.getOrderId() + '/',
-					'type': 'post',
-					'data': {
-						'sent': 1
-					},
-					'dataType': 'json',
-					'complete': function() {
-						that.toggleButtons(true);
-					},
-					'success': function(d) {
-						var l = 0, i = 0;
-						if (d && d.ok && d.ok == 1) {
-							$('tr[id^="product"]').hide();
-							l = d.products.length;
-							for (i = 0; i < l; i++) {
-								$('#product_' + d.products[i]).show();
+					that.setInputError(this, true);
+					d = that.getRowData(this);
+					if (d) {
+						d.ordered = gastmo.math(d.ordered, '+', qty, [['-', d.user_ordered]]);
+						that.setRowValue(this, 'ordered', d.ordered);
+						that.setRowValue(this, 'completed', that.getCalcValue(d, 'completed'));
+						that.setRowValue(this, 'to_complete', that.getCalcValue(d, 'to_complete'));
+						that.setRowValue(this, 'price_total', gastmo.math(d.price, '*', qty, [['round', 2]]));
+						total_values = document.querySelectorAll('td.price_total');
+						l = total_values.length;
+						for (i = 0; i < l; i++) {
+							v = total_values[i].getAttribute('data-val');
+							if (!isNaN(v)) {
+								tot = gastmo.math(tot, '+', v);
 							}
-						} else {
+						}
+						document.getElementById('price_total_order').textContent = that.formatCurrency(tot);
+					} else {
+						that.setInputError(this);
+					}
+				}
+				that.save();
+			});
+			inps[i].addEventListener('focus', function() {
+				var tr = this.closest('tr');
+				if (tr) {
+					tr.classList.add('table-active');
+				}
+			});
+			inps[i].addEventListener('blur', function() {
+				var tr = this.closest('tr');
+				if (tr) {
+					tr.classList.remove('table-active');
+				}
+			});
+		}
+		l = notes.length;
+		for (i = 0; i < l; i++) {
+			new bootstrap.Tooltip(notes[i], {
+				'container': 'body',
+				'placement': 'right'
+			});
+		}
+		if (save_order) {
+			save_order.addEventListener('click', function(e) {
+				e.preventDefault();
+				that.save();
+			});
+		}
+		if (toggle_ordered_products) {
+			toggle_ordered_products.addEventListener('click', function(e) {
+				var trs = document.querySelectorAll('#order tr[id^="product"].d-none'), l = trs.length, i = 0;
+				e.preventDefault();
+				if (l > 0) {
+					this.textContent = 'Mostra prodotti ordinati';
+					for (i = 0; i < l; i++) {
+						trs[i].classList.remove('d-none');
+					}
+				} else {
+					this.textContent = 'Mostra tutti i prodotti';
+					that.toggleButtons(false);
+					$.ajax({
+						'url': that.base_path + '/order/getorderedproducts/' + that.getOrderId() + '/',
+						'type': 'post',
+						'data': {
+							'sent': 1
+						},
+						'dataType': 'json',
+						'complete': function() {
+							that.toggleButtons(true);
+						},
+						'success': function(d) {
+							var trs = null, l = 0, i = 0;
+							if (d && d.ok && d.ok == 1) {
+								trs = document.querySelectorAll('#order tr[id^="product"]');
+								l = trs.length;
+								for (i = 0; i < l; i++) {
+									if (d.products.indexOf(parseInt(trs[i].getAttribute('id').substr(8), 10)) == -1) {
+										trs[i].classList.add('d-none');
+									}
+								}
+							} else {
+								messenger.error('Ci sono stati dei problemi.');
+							}
+						},
+						'error': function() {
 							messenger.error('Ci sono stati dei problemi.');
 						}
-					},
-					'error': function() {
-						messenger.error('Ci sono stati dei problemi.');
+					});
+				}
+			});
+		}
+		l = category_togglers.length;
+		for (i = 0; i < l; i++) {
+			category_togglers[i].addEventListener('click', function() {
+				var c = {
+					'open': 'bi-dash-lg',
+					'closed': 'bi-plus-lg'
+				}, trs = document.querySelectorAll('#order tr[data-category="' + this.getAttribute('data-category') + '"]'), l = trs.length, i = 0, open = this.getAttribute('data-category-closed') == 1, icon = this.querySelector('.bi');
+				icon.classList.remove(open ? c.closed : c.open);
+				icon.classList.add(open ? c.open : c.closed);
+				for (i = 0; i < l; i++) {
+					if (open) {
+						trs[i].classList.remove('d-none');
+					} else {
+						trs[i].classList.add('d-none');
 					}
-				});
-			}
-			return false;
-		});
-		$('#order td.category a').click(function() {
-			var a = $(this), c = {
-				'open': 'glyphicon-minus-sign',
-				'closed': 'glyphicon-plus-sign'
-			}, trs = a.closest('tr').nextAll('tr[data-category=' + this.hash.substring(10) + ']');
-			if (a.hasClass(c.closed)) {
-				a.removeClass(c.closed).addClass(c.open);
-				trs.show();
-			} else {
-				a.removeClass(c.open).addClass(c.closed);
-				trs.hide();
-			}
-			return false;
-		});
-		$('#order .note ').tooltip({
-			'container': 'body',
-			'placement': 'right'
-		});
+				}
+				this.setAttribute('data-category-closed', open ? 0 : 1)
+			});
+		}
 	},
 	'getOrderId': function() {
 		if (!this.id_order) {
@@ -251,9 +317,6 @@ order = {
 			this.products[id] = null;
 		}
 	},
-	'setRowError': function(inp) {
-		$(inp).closest('td').addClass('has-error');
-	},
 	'setRowValue': function(inp, f, v) {
 		var id = this.getRowId(inp),
 			tr = null, td = null;
@@ -293,15 +356,22 @@ order = {
 			}
 		}
 	},
+	'setInputError': function(inp, remove) {
+		if (remove) {
+			inp.classList.remove('is-invalid');
+		} else {
+			inp.classList.add('is-invalid');
+		}
+	},
 	'getCalcValue': function(d, f) {
-		var res = null;
+		var res = null, x = null;
 		switch (f) {
 			case 'completed':
 				res = d.ordered <= 0 ? 0 : Math.floor(d.ordered / d.qty_package);
 			break;
 			case 'to_complete':
-				var m = d.ordered % d.qty_package;
-				res = m > 0 ? d.qty_package - m : 0;
+				x = gastmo.math(d.ordered, '%', d.qty_package);
+				res = x > 0 ? gastmo.math(d.qty_package, '-', x) : 0;
 			break;
 		}
 		return res;
@@ -371,8 +441,8 @@ order_delivered = {
 		});
 	},
 	'showVote': function(a, v) {
-		var c = ['glyphicon-star-empty', 'glyphicon-star']
-		$(a).find('.glyphicon').addClass(v ? c[1] : c[0]).removeClass(v ? c[0] : c[1]);
+		var c = ['bi-star', 'bi-star-fill']
+		$(a).find('.bi').addClass(v ? c[1] : c[0]).removeClass(v ? c[0] : c[1]);
 	},
 	'setVote': function(p, v) {
 		$(':input[name="product_vote[' + p +']"]').val(v);
@@ -410,7 +480,7 @@ order_delivered = {
 	}
 };
 
-$(document).ready(function() {
+window.addEventListener('DOMContentLoaded', function() {
 	gastmo.init();
 	order.init();
 	order_delivered.init();

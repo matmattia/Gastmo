@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
 	<composer>require phpoffice/phpspreadsheet</composer>
+	<db>CREATE TABLE `orders_totals` (
+		`order` INTEGER NOT NULL,
+		`user` INTEGER NOT NULL,
+		`total` DOUBLE NOT NULL DEFAULT 0
+	);
+	ALTER TABLE `orders_totals` ADD PRIMARY KEY (`order`, `user`);</db>
+	<db>CREATE TABLE `orders_totals_archived` (
+		`order` INTEGER NOT NULL,
+		`user` INTEGER NOT NULL,
+		`total` DOUBLE NOT NULL DEFAULT 0
+	);
+	ALTER TABLE `orders_totals_archived` ADD PRIMARY KEY (`order`, `user`);</db>
 </install>

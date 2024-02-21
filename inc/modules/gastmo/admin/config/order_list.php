@@ -134,177 +134,235 @@ if (isset($_GET['export'])) {
 		</style>
 		<script type="text/javascript">
 		var order_create = {
-			'saveUserProductOrderQtyXhr': null,
 			'init': function() {
-				/* Tolgo l'invio del form dai campi */
-				$$('#create_order input[type="text"], #create_order input[type="checkbox"]').addEvent('keypress', function(e) {
-					e = new DOMEvent(e);
-					if (e.key == 'enter') {
-						e.stop();
-					}
-				});
+				var that = this, els = null, l = 0, i = 0;
 				/* Creo il campo di testo per modificare la quantità ordinata */
-				$$('#create_order .original_qty span').addEvent('dblclick', function() {
-					var s = $(this);
-					new Element('input', {
-						'type': 'text',
-						'value': s.get('text')
-					}).addEvent('blur', function() {
-						order_create.saveUserProductOrderQty(this, s);
-					}).addEvent('keypress', function(e) {
-						e = new DOMEvent(e);
-						if (e.key == 'enter') {
-							e.stop();
-							order_create.saveUserProductOrderQty(this, s);
-						}
-					}).inject(s.getParent('td')).focus();
-					s.setStyle('display', 'none');
-				});
-				/* Visualizzo il campo di testo per modificare la quantità da ordinare */
-				$$('#create_order .q').addEvent('dblclick', function() {
-					var s = $(this), td = s.getParent('td'), inp = td.getElement('input');
-					s.setStyle('display', 'none');
-					inp.set('type', 'text').addEvent('blur', function() {
-						order_create.editUserProductOrderQty(this);
-					}).addEvent('keypress', function(e) {
-						e = new DOMEvent(e);
-						if (e.key == 'enter') {
-							e.stop();
-							order_create.editUserProductOrderQty(this);
+				els = document.querySelectorAll('[data-operation="edit-original-qty"]');
+				l = els.length;
+				for (i = 0; i < l; i++) {
+					els[i].addEventListener('click', function(e) {
+						var td = this.closest('.original_qty'), s = null, inp = null;
+						e.preventDefault();
+						if (td) {
+							s = td.querySelector('span');
+							if (s) {
+								inp = admin.createElement('input', {
+									'type': 'number',
+									'value': s.innerText,
+									'step': 'any',
+									'class': 'form-control'
+								}, {
+									'blur': function() {
+										that.saveUserProductOrderQty(this, s);
+									},
+									'keypress': function(e) {
+										if (e.keyCode == 13) {
+											e.preventDefault();
+											that.saveUserProductOrderQty(this, s);
+										}
+									}
+								});
+								td.prepend(inp);
+								inp.focus();
+								s.style.display = 'none';
+							}
 						}
 					});
-				});
+				}
+				/* Visualizzo il campo di testo per modificare la quantità da ordinare */
+				els = document.querySelectorAll('[data-operation="edit-new-qty"]');
+				l = els.length;
+				for (i = 0; i < l; i++) {
+					els[i].addEventListener('click', function(e) {
+						var td = this.closest('td'), s = td ? td.querySelector('span') : null, inp = td ? td.querySelector('input') : null;
+						e.preventDefault();
+						if (s && inp) {
+							s.style.display = 'none';
+							inp.setAttribute('type', 'number');
+							if (!inp.dataset.onceEdited) {
+								inp.setAttribute('step', 'any');
+								inp.classList.add('form-control');
+								inp.addEventListener('blur', function() {
+									that.editUserProductOrderQty(this);
+								});
+								inp.addEventListener('keypress', function(e) {
+									if (e.keyCode == 13) {
+										e.preventDefault();
+										that.editUserProductOrderQty(this);
+									}
+								});
+								inp.dataset.onceEdited = 1;
+							}
+						}
+					});
+				}
 			},
 			'updateProduct': function(b) {
-				var tr = $(b).getParent('tr'),
-					p = JSON.decode(tr.get('data-product')),
-					fixed = [], fixed_inp = $$('input[name="fixed_qty_' + p.id + '"]:checked'), fixed_inp_l = fixed_inp.length, i = 0;
-				for (i = 0; i < fixed_inp_l; i++) {
-					fixed.push($(fixed_inp[i]).get('value'));
+				var that = this, tr = b ? b.closest('tr') : null, p = null,
+					fixed = [], fixed_inp = null, l = 0, i = 0;
+				try {
+					p = JSON.parse(tr.getAttribute('data-product'));
+				} catch {
+					p = null;
 				}
-				new Request.JSON({
-					'url': 'index.php?page=list_order&create=<?php echo $order_id;?>',
-					'method': 'post',
+				if (p && p.id) {
+					fixed_inp = document.querySelectorAll('input[name="fixed_qty_' + p.id + '"]:checked');
+					l = fixed_inp.length;
+					for (i = 0; i < l; i++) {
+						fixed.push(fixed_inp[i].value);
+					}
+				}
+				admin.ajaxOperation({
+					'url': _ROOT + 'index.php?page=list_order&create=<?php echo $order_id;?>',
 					'data': {
 						'change_packages': p.id,
-						'tot_packages': tr.getElement('input[name^="tot_packages"]').get('value'),
-						'round': tr.getElement('input[name="round"]').get('value'),
+						'tot_packages': tr.querySelector('input[name^="tot_packages"]').value,
+						'round': tr.querySelector('input[name="round"]').value,
 						'fixed': fixed
 					},
 					'onComplete': function(d) {
-						var l = d && d.ok && d.ok == 1 && d.carts && d.carts.length, i = 0,
-							tot_qty_diff = l > 0 ? tr.getElement('.tot_qty_diff') : null;
+						var l = d && d.ok && d.ok == 1 && d.carts && d.carts.length, i = 0;
 						for (i = 0; i < l; i++) {
-							if (i == 0 && tot_qty_diff) {
-								tot_qty_diff.set('text', d.carts[i]['tot_qty_diff']);
-								tot_qty_diff.getParent('p').removeClass(d.carts[i]['tot_qty_diff'] == 0 ? 'alert-danger' : 'alert-success').addClass(d.carts[i]['tot_qty_diff'] == 0 ? 'alert-success' : 'alert-danger');
+							if (i == 0) {
+								that.setProductQtyDiff(d.carts[i].product_id, d.carts[i].tot_qty_diff);
 							}
-							order_create.updateProductUser(d.carts[i]);
+							that.updateProductUser(d.carts[i]);
 						}
 					}
-				}).send();
+				});
 			},
 			'updateProductUser': function(c) {
-				var tr = $('product_' + c['user_id'] + '_' +c['product_id']),
-					tdd = tr.getElement('.diff');
-				tr.getElement('.q').set('text', c['product_new_quantity']);
-				tr.getElement('input[name^="q"]').set('value', c['product_new_quantity']);
-				tdd.set('text', (c['product_diff_quantity'] > 0 ? '+' : '') + c['product_diff_quantity']);
-				if (c['product_diff_quantity'] == 0) {
-					tdd.removeClass('alert-warning');
-				} else {
-					tdd.addClass('alert-warning');
-				}
+				var tr = document.getElementById('product_' + c['user_id'] + '_' +c['product_id']);
+				tr.querySelector('.q').innerText = c['product_new_quantity'];
+				tr.querySelector('input[name^="q"]').value = c['product_new_quantity'];
+				this.setRowDiff(tr, c['product_diff_quantity']);
 			},
 			'getProductUserData': function(el) {
-				var p = null;
-				el = new Element(el);
-				if (el.get('tag') != 'tr') {
-					el = el.getParent('tr');
+				var p = null, h = null;
+				if (el.tagName != 'TR') {
+					el = el.closest('tr');
 				}
 				if (el) {
-					p = el.get('data-product');
+					p = el.getAttribute('data-product');
 				}
-				p = p ? JSON.decode(p) : null;
+				try {
+					p = JSON.parse(p);
+				} catch {
+					p = null;
+				}
 				if (p && p.id) {
-					Object.merge(p, JSON.decode($('product_' + p.id).get('data-product')));
+					h = document.getElementById('product_' + p.id);
+					if (h) {
+						try {
+							p2 = JSON.parse(h.getAttribute('data-product'));
+						} catch {
+							p2 = null;
+						}
+						if (p2) {
+							Object.assign(p, p2);
+						}
+					}
+					
 				}
 				return p;
 			},
+			'saveUserProductOrderQtyXhr': null,
 			/* Salva la quantità ordinata */
 			'saveUserProductOrderQty': function(inp, s) {
-				var el = $(inp),
-					product = order_create.getProductUserData(el),
+				var that = this, product = this.getProductUserData(inp),
 					replace_input_span = function(is_success) {
-						s.setStyle('display', '');
-						el.store('erasing', true).dispose();
+						s.style.display = '';
+						inp.dataset.erasing = true;
+						inp.remove();
 						if (is_success) {
 							alert('Salvataggio avvenuto correttamente.');
 						} else {
 							alert('Ci sono stati dei problemi nel salvataggio.');
 						}
 					};
-				if (el.retrieve('erasing', false)) {
+				if (inp.dataset.erasing) {
 					return;
 				}
 				if (this.saveUserProductOrderQtyXhr) {
-					this.saveUserProductOrderQtyXhr.cancel();
+					this.saveUserProductOrderQtyXhr.abort();
 				}
-				this.saveUserProductOrderQtyXhr = new Request.JSON({
-					'url': 'index.php?page=list_order&create=<?php echo $order_id;?>',
-					'method': 'post',
+				this.saveUserProductOrderQtyXhr = admin.ajaxOperation({
+					'url': _ROOT + 'index.php?page=list_order&create=<?php echo $order_id;?>',
 					'data': {
-						'saveCartValue': el.get('value'),
+						'saveCartValue': inp.value,
 						'user': product ? product.user_id : 0,
 						'product': product ? product.id : 0
-					},
+					}
+				}, {
 					'onSuccess': function(d) {
 						if (d && d.ok == 1) {
-							s.set('text', d.value);
-							order_create.updateProduct($$('#product_' + (product ? product.id : 0) + ' .update_product_button')[0]);
-							replace_input_span.attempt([true]);
+							s.innerText = d.value;
+							that.updateProduct(document.querySelector('#product_' + (product ? product.id : 0) + ' .update_product_button'));
+							replace_input_span.call(null, true);
 						} else {
-							replace_input_span.attempt([false]);
+							replace_input_span.call(null, false);
 						}
 					},
 					'onError': function() {
-						replace_input_span.attempt([false]);
-					},
-					'onFailure': function() {
-						replace_input_span.attempt([false]);
+						replace_input_span.call(null, false);
 					}
-				}).send();
+				});
 			},
 			/* Modifica la quantità da ordinare */
-			'editUserProductOrderQty': function(el) {
-				var inp = $(el), td = inp.getParent('td'), s = td.getElement('.q'), tr = td.getParent('tr'), td_diff = tr.getElement('.diff'),
-					product = this.getProductUserData(tr), p_tr = $('product_' + product.id),
-					qties = tr.getParent('table').getElements('tr.product_' + product.id + ' .q'), qties_l = qties.length,
-					v = this.checkNumber(inp.get('value').toFloat()), diff = this.checkNumber(v - tr.getElement('.original_qty').get('text').toFloat()),
-					total_diff = p_tr.getElement('input[name^="tot_packages"]').get('value') * product.qty_package,
+			'editUserProductOrderQty': function(inp) {
+				var td = inp.closest('td'), s = td ? td.querySelector('.q') : null, tr = td ? td.closest('tr') : null,
+					product = this.getProductUserData(tr), p_tr = document.getElementById('product_' + product.id),
+					t = tr.closest('table'), qties = t ? t.querySelectorAll('tr.product_' + product.id + ' .q') : [], qties_l = qties.length,
+					v = this.checkNumber(inp.value), diff = this.checkNumber(v - tr.querySelector('.original_qty').innerText),
+					total_diff = p_tr.querySelector('input[name^="tot_packages"]').value * product.qty_package,
 					i = 0;
-				s.set('text', v).setStyle('display', '');
-				inp.set('type', 'hidden').removeEvents('dblclick').removeEvents('keypress');
-				td_diff.set('text', diff);
-				if (diff == 0) {
-					td_diff.removeClass('alert-warning');
-				} else {
-					td_diff.addClass('alert-warning');
+				if (s) {
+					s.innerText = v;
+					s.style.display = '';
 				}
+				if (inp) {
+					inp.setAttribute('type', 'hidden');
+				}
+				this.setRowDiff(tr, diff);
 				for (i = 0; i < qties_l; i++) {
-					total_diff -= $(qties[i]).get('text').toFloat();
+					total_diff -= qties[i].innerText;
 				}
-				total_diff = this.checkNumber(total_diff * -1);
-				p_tr.getElement('.tot_qty_diff').set('text', total_diff).getParent('p').removeClass(total_diff == 0 ? 'alert-danger' : 'alert-success').addClass(total_diff == 0 ? 'alert-success' : 'alert-danger');
+				this.setProductQtyDiff(product.id, total_diff * -1);
+			},
+			'setProductQtyDiff': function(pid, qty) {
+				var tr = document.getElementById('product_' + pid), s = tr ? tr.querySelector('.tot_qty_diff') : null, p = s ? s.closest('p') : null;
+				if (s) {
+					qty = this.checkNumber(qty);
+					s.innerText = qty;
+					if (p) {
+						if (qty == 0) {
+							p.classList.remove('alert-danger');
+							p.classList.add('alert-success');
+						} else {
+							p.classList.remove('alert-success');
+							p.classList.add('alert-danger');
+						}
+					}
+				}
+			},
+			'setRowDiff': function(tr, qty) {
+				var td = tr ? tr.querySelector('.diff') : null;
+				if (td) {
+					qty = this.checkNumber(qty);
+					td.innerText = (qty > 0 ? '+' : '') + qty;
+					if (qty == 0) {
+						td.classList.remove('table-warning');
+					} else {
+						td.classList.add('table-warning');
+					}
+				}
 			},
 			'checkNumber': function(n) {
-				return n.format({
-					'decimals': 3
-				}).toFloat();
+				return Number.parseFloat(Number.parseFloat(n).toFixed(3));
 			}
 		};
 		
-		window.addEvent('domready', function() {
+		document.addEventListener('DOMContentLoaded', function() {
 			order_create.init();
 		});
 		</script>
@@ -316,6 +374,7 @@ if (isset($_GET['export'])) {
 		}
 		?>
 		<form action="index.php?page=list_order&amp;create=<?php echo $order_id;?>" method="post">
+			<button type="submit" disabled="disabled" style="display:none" aria-hidden="true"></button>
 			<table id="create_order" class="table table-sm table-bordered">
 				<tfoot>
 					<tr><td colspan="8" class="text-right"><button type="submit" class="btn btn-primary">Esporta</button></td></tr>
@@ -353,7 +412,7 @@ if (isset($_GET['export'])) {
 										<div class="col-sm-offset-6 col-sm-6"><button type="button" onclick="order_create.updateProduct(this);return false;" class="update_product_button btn btn-secondary">Aggiorna</button></div>
 									</div>
 								</div>
-								<p class="<?php echo $orders[$i]['tot_qty_diff'] == 0 ? 'alert-success' : 'alert-danger';?>">Differenza quantit&agrave;: <span class="tot_qty_diff"><?php echo ($orders[$i]['tot_qty_diff'] > 0 ? '+' : '').floatval($orders[$i]['tot_qty_diff']);?></span></p>
+								<p class="<?php echo $orders[$i]['tot_qty_diff'] == 0 ? 'alert alert-success' : 'alert alert-danger';?>">Differenza quantit&agrave;: <span class="tot_qty_diff"><?php echo ($orders[$i]['tot_qty_diff'] > 0 ? '+' : '').floatval($orders[$i]['tot_qty_diff']);?></span></p>
 							</td>
 						</tr>
 						<tr class="product">
@@ -378,13 +437,14 @@ if (isset($_GET['export'])) {
 						<td><?php echo html($orders[$i]['username']);?></td>
 						<td><?php echo html($orders[$i]['name']);?></td>
 						<td><?php echo html($orders[$i]['email']);?></td>
-						<td class="original_qty"><span><?php echo $orders[$i]['product_quantity'];?></span></td>
+						<td class="original_qty"><span><?php echo $orders[$i]['product_quantity'];?></span> <?php echo \Admin::printIcon('edit', array('a' => array('data-operation' => 'edit-original-qty')));?></td>
 						<td>
 							<span class="q"><?php echo $orders[$i]['product_new_quantity'];?></span>
 							<input type="hidden" name="q[<?php echo $orders[$i]['user_id'];?>][<?php echo $orders[$i]['product_id'];?>]" value="<?php echo $orders[$i]['product_new_quantity'];?>" data-qty="<?php echo $orders[$i]['product_quantity'];?>" />
+							<?php echo \Admin::printIcon('edit', array('a' => array('data-operation' => 'edit-new-qty')));?>
 						</td>
 						<td><input type="checkbox" name="fixed_qty_<?php echo $orders[$i]['product_id'];?>" value="<?php echo $orders[$i]['user_id'];?>" /></td>
-						<td class="diff<?php if ($orders[$i]['product_diff_quantity'] != 0) : ?> alert-warning<?php endif;?>"><?php echo ($orders[$i]['product_diff_quantity'] > 0 ? '+' : '').floatval($orders[$i]['product_diff_quantity']);?></td>
+						<td class="diff<?php if ($orders[$i]['product_diff_quantity'] != 0) : ?> table-warning<?php endif;?>"><?php echo ($orders[$i]['product_diff_quantity'] > 0 ? '+' : '').floatval($orders[$i]['product_diff_quantity']);?></td>
 					</tr>
 					<?php
 				}
@@ -670,35 +730,41 @@ if (isset($_GET['export'])) {
 			?>
 			<script type="text/javascript">
 			function showProductVotesUsers(p) {
+				var err_func = function() {
+					modal.setContent(admin.createElement('p', {
+						'text': 'Nessun utente trovato.'
+					}));
+				}
 				modal.setTitle('Utenti');
 				modal.openLoading();
-				new Request.JSON({
-					'url': 'index.php',
+				admin.ajaxOperation({
+					'url': _ROOT + 'index.php',
 					'method': 'get',
-					'data': Object.merge(<?php echo json_encode($qs);?>, {
+					'data': Object.assign(<?php echo json_encode($qs);?>, {
 						'page': 'list_order',
 						'product_users': p
-					}),
-					'onComplete': function(r) {
-						var l = 0, i = 0, ul = null;
-						if (r && r.ok && r.ok == 1) {
-							l = r.users ? r.users.length : 0;
-							if (l > 0) {
-								ul = new Element('ul');
-								for (i = 0; i < l; i++) {
-									ul.adopt(new Element('li', {
+					})
+				}, {
+					'onSuccess': function(r) {
+						var l = r.users ? r.users.length : 0, i = 0, lis = [];
+						if (l > 0) {
+							for (i = 0; i < l; i++) {
+								lis.push({
+									'tag': 'li',
+									'attributes': {
 										'text': r.users[i]
-									}));
-								}
-								modal.setContent(ul);
-							} else {
-								modal.setContent(new Element('p', {
-									'text': 'Nessun utente trovato.'
-								}));
+									}
+								});
 							}
+							modal.setContent(admin.createElement('ul', null, null, lis));
+						} else {
+							err_func.call();
 						}
+					},
+					'onError': function() {
+						err_func.call();
 					}
-				}).send();
+				});
 			}
 			</script>
 			<?php
@@ -715,10 +781,10 @@ if (isset($_GET['export'])) {
 			<?php if (!$do_export) : ?>
 				<?php echo printHtmlTag('p', ($can_pdf ? printHtmlTag('a', 'PDF', array(
 					'href' => 'index.php?page=list_order'.(empty($qs) ? '' : '&'.http_build_query($qs)).'&download=pdf',
-					'class' => 'btn btn-default'
+					'class' => 'btn btn-secondary'
 				)).' ' : '').printHtmlTag('a', 'Excel', array(
 					'href' => 'index.php?page=list_order'.(empty($qs) ? '' : '&'.http_build_query($qs)).'&download=xls',
-					'class' => 'btn btn-default'
+					'class' => 'btn btn-secondary'
 				)));?>
 			<?php endif;?>
 			<table <?php if ($do_export) : ?>border="1"<?php else : ?>class="table table-bordered table-hover table-condensed"<?php endif;?>>
@@ -752,15 +818,18 @@ if (isset($_GET['export'])) {
 						?>
 						<tr>
 							<td rowspan="<?php echo $counter_votes_descr;?>"><?php echo html($v['title']);?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['sums']['qty'] > 0) : ?><?php echo printOrderVotesQty($v['sums']['qty']);?><?php endif;?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php echo printOrderVotesQty($v['qty']);?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['vote']['num'] > 0) : ?><?php echo printOrderVotesQty(round($v['vote']['tot'] / $v['vote']['num'], 1));?><?php endif;?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['waste'] > 0) : ?><?php echo printOrderVotesQty($v['waste']);?><?php endif;?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['sums']['num_votes'] > 0) : ?><?php echo printOrderVotesQty(round($v['sums']['votes'] / $v['sums']['num_votes'], 1));?><?php endif;?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['sums']['num_votes'] > 0) : ?><?php echo intval($v['sums']['num_votes']);?><?php if (!$do_export) : ?> <a href="#" onclick="showProductVotesUsers(<?php echo json_encode($v['ids']);?>);return false;"><span class="sr-only sr-only-focusable">Utenti</span><span class="glyphicon glyphicon-user" aria-hidden="true"></span></a><?php endif;?><?php endif;?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['sums']['waste'] > 0) : ?><?php echo printOrderVotesQty($v['sums']['waste']);?><?php endif;?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['sums']['votes_1'] > 0) : ?><?php echo intval($v['sums']['votes_1']);?><?php endif;?></td>
-							<td rowspan="<?php echo $counter_votes_descr;?>" style="text-align:center;"><?php if ($v['sums']['votes_5'] > 0) : ?><?php echo intval($v['sums']['votes_5']);?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['sums']['qty'] > 0) : ?><?php echo printOrderVotesQty($v['sums']['qty']);?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php echo printOrderVotesQty($v['qty']);?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['vote']['num'] > 0) : ?><?php echo printOrderVotesQty(round($v['vote']['tot'] / $v['vote']['num'], 1));?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['waste'] > 0) : ?><?php echo printOrderVotesQty($v['waste']);?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['sums']['num_votes'] > 0) : ?><?php echo printOrderVotesQty(round($v['sums']['votes'] / $v['sums']['num_votes'], 1));?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['sums']['num_votes'] > 0) : ?><?php echo intval($v['sums']['num_votes']);?><?php if (!$do_export) : ?> <?php echo \Admin::printIcon(null, array(
+								'icon' => array('bootstrap' => 'people', 'fontawesome' => 'users'),
+								'a' => array('onclick' => 'showProductVotesUsers('.json_encode($v['ids']).');return false;', 'title' => 'Utenti')
+							));?><?php endif;?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['sums']['waste'] > 0) : ?><?php echo printOrderVotesQty($v['sums']['waste']);?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['sums']['votes_1'] > 0) : ?><?php echo intval($v['sums']['votes_1']);?><?php endif;?></td>
+							<td rowspan="<?php echo $counter_votes_descr;?>" class="text-center"><?php if ($v['sums']['votes_5'] > 0) : ?><?php echo intval($v['sums']['votes_5']);?><?php endif;?></td>
 							<?php for ($i = 0; $i < $counter_votes_descr; $i++ ) : ?>
 								<?php if ($i > 0) : ?>
 									<tr>
@@ -863,13 +932,20 @@ if (isset($_GET['export'])) {
 		header('Access-Control-Allow-Origin: *');
 		header('Access-Control-Allow-Methods: GET');
 	}
+	$check_func_edit = function($operation, $params) {
+		return is_array($params) && isset($params['data']) && is_array($params['data'])
+			&& isset($params['data']['id']) && is_numeric($params['data']['id']) && $params['data']['id'] > 0
+			&& Order::canEdit($params['data']['id'])
+			? $operation
+			: null;
+	};
 	$operations = array(
 		'add' => true,
 		'export_raw' => array('href' => _ADMINH.'index.php?page=list_order&export={URLENCODE|ID}', 'title' => 'Esporta CSV degli ordini effettuati', 'class_icon' => 'shopping-cart'),
-		'create' => array('href' => _ADMINH.'index.php?page=list_order&create={URLENCODE|ID}', 'title' => 'Chiusura ordine'),
+		'create' => array('href' => _ADMINH.'index.php?page=list_order&create={URLENCODE|ID}', 'title' => 'Chiusura ordine', 'check_func' => $check_func_edit),
 		'export_input_csv' => array('href' => _ADMINH.'index.php?page=list_order&export_input_csv={URLENCODE|ID}', 'title' => 'Esporta CSV per creare un nuovo ordine', 'icon' => 'page_excel.png'),
 		'export' => array('href' => '#', 'onclick' => 'openMultiExport({URLENCODE|ID});return false;', 'title' => 'Esportazione'),
-		'import_qty' => array('href' => _ADMINH.'index.php?page=edit_order&import_qty={URLENCODE|ID}', 'title' => 'Importa CSV delle quantità definitive', 'class_icon' => 'file-import'),
+		'import_qty' => array('href' => _ADMINH.'index.php?page=edit_order&import_qty={URLENCODE|ID}', 'title' => 'Importa CSV delle quantità definitive', 'check_func' => $check_func_edit, 'class_icon' => 'file-import'),
 		'import_votes' => array('href' => _ADMINH.'index.php?page=edit_order&import_votes={URLENCODE|ID}', 'title' => 'Importa CSV dei giudizi', 'class_icon' => 'vote-yea'),
 		'votes' => array('href' => _ADMINH.'index.php?page=list_order&votes={URLENCODE|ID}', 'title' => 'Voti', 'class_icon' => 'poll'),
 		'total' => array('href' => _ADMINH.'index.php?page=list_order&totals={URLENCODE|ID}', 'title' => 'Totali', 'class_icon' => 'file-invoice-dollar'),
@@ -880,7 +956,7 @@ if (isset($_GET['export'])) {
 				? $operation
 				: null;
 		}),
-		'edit' => true,
+		'edit' => array('check_func' => $check_func_edit),
 		'delete' => array('check_func' => function($operation, $params) {
 			return is_array($params) && isset($params['data']) && is_array($params['data'])
 				&& isset($params['data']['id']) && is_numeric($params['data']['id']) && $params['data']['id'] > 0
