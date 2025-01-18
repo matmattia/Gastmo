@@ -718,8 +718,7 @@ if (isset($_GET['export'])) {
 				unset($i, $counter, $carts, $k, $v);
 			}
 		}
-		$tcpdf_path = _CLASS.'tcpdf/tcpdf.php';
-		$can_pdf = is_file($tcpdf_path);
+		$can_pdf = class_exists('\TCPDF');
 		$do_pdf = $can_pdf && isset($_GET['download']) && is_string($_GET['download']) && $_GET['download'] == 'pdf';
 		$do_xls = isset($_GET['download']) && is_string($_GET['download']) && $_GET['download'] == 'xls';
 		$do_export = $do_pdf || $do_xls;
@@ -845,7 +844,6 @@ if (isset($_GET['export'])) {
 			</table>
 		<?php endif;
 		if ($do_pdf) {
-			require_once($tcpdf_path);
 			$pdf = new \TCPDF('L', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 			$pdf->SetAuthor('Gastmo');
 			$pdf->SetTitle($title);
@@ -872,7 +870,7 @@ if (isset($_GET['export'])) {
 			unset($xls);
 			exit();
 		}
-		unset($tcpdf_path, $can_pdf, $do_pdf, $do_xls, $do_export);
+		unset($can_pdf, $do_pdf, $do_xls, $do_export);
 	}
 	unset($title, $orders, $qs);
 	$no_print_list = true;

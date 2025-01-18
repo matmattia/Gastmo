@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
 	<composer>require phpoffice/phpspreadsheet</composer>
+	<composer>require tecnickcom/tcpdf</composer>
 	<db>CREATE TABLE `orders_totals` (
 		`order` INTEGER NOT NULL,
 		`user` INTEGER NOT NULL,
