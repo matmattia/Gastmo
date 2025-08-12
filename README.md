@@ -4,7 +4,7 @@ Gastmo è un modulo di [MatCMS](https://www.matriz.it/projects/matcms/ "Matriz | 
 Sfruttando MatCMS è possibile anche costruire un sito per il proprio GAS.
 
 [![Donate via PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=MQVMRTV6PW4AQ)
-*Se questo progetto vi è stato utile o vi è piaciuto, potete fare una donazione attraverso [PayPal](https://www.paypal.com/donate/?hosted_button_id=MQVMRTV6PW4AQ)*
+*Se questo progetto vi è stato utile o vi è piaciuto, potete fare una donazione attraverso [PayPal](https://www.paypal.com/donate/?hosted_button_id=MQVMRTV6PW4AQ).*
 
 ## Altre informazioni
 

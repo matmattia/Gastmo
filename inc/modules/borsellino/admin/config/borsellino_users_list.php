@@ -9,13 +9,26 @@ if (isset($_REQUEST['calc_totals'])) {
 	unset($borsellino);
 	exit();
 }
+
+if (isset($_REQUEST['update_totals'])) {
+	$objUserArchivedOrdersTotals = new \Borsellino\BorsellinoUserArchivedOrdersTotals();
+	echo json_encode(array('ok' => $objUserArchivedOrdersTotals->checkUser($_REQUEST['update_totals'], true) ? 1 : 0));
+	exit();
+}
+
 $object = '\Borsellino\BorsellinoUserView';
 $sql = array('order' => array('alias' => 'ASC'));
 $operations = array(
+	'update_total' => array(
+		'href' => '#',
+		'onclick' => 'borsellino.updateTotals({URLENCODE|ID});return false;',
+		'title' => 'Aggiorna i totali',
+		'class_icon' => 'refresh'
+	),
 	'calc_expected_total' => array(
 		'href' => '#',
 		'onclick' => 'borsellino.calcTotals({URLENCODE|ID});return false;',
-		'title' => 'Calcola totali',
+		'title' => 'Calcola i totali',
 		'class_icon' => 'calculator'
 	),
 	'view' => array(
@@ -26,7 +39,9 @@ $operations = array(
 );
 $fields = array(
 	array('field' => 'alias', 'title' => 'Utente'),
-	array('field' => 'total', 'title' => 'Totale'),
+	array('field' => 'total', 'title' => 'Totale', 'print_function' => function($v) {
+		return number_format(is_numeric($v) ? floatval($v) : 0, 2, ',', '.');
+	})
 );
 
 ob_start();
@@ -47,6 +62,18 @@ var borsellino = {
 			},
 			'onError': function() {
 				modal.close();
+			}
+		});
+	},
+	'updateTotals': function(id) {
+		admin.ajaxOperation({
+			'url': _ROOT + 'index.php?page=list_borsellino_users',
+			'data': {
+				'update_totals': id
+			}
+		}, {
+			'onSuccess': function(d) {
+				window.location.reload();
 			}
 		});
 	}

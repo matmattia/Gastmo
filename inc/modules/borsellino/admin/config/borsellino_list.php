@@ -1,6 +1,5 @@
 <?php
 $object = '\Borsellino\Borsellino';
-
 $sql = array(
 	'join' => array(
 		'users_view' => array('type' => 'left', 'cond' => array('users_view.id', 'borsellino.user'))
@@ -23,9 +22,15 @@ $operations = array(
 	)
 );
 $fields = array(
-	array('field' => 'date', 'title' => 'Data'),
+	array('field' => 'date', 'title' => 'Data', 'print_function' => function($v) {
+		return printDate($v, 'd/m/Y');
+	}),
 	array('field' => 'user', 'title' => 'Utente', 'field_sql' => 'users_view.alias'),
 	array('field' => 'descr', 'title' => 'Descrizione'),
-	array('field' => 'income', 'title' => 'Entrata'),
-	array('field' => 'outflow', 'title' => 'Uscita')
+	array('field' => 'income', 'title' => 'Entrata', 'print_function' => function($v) {
+		return number_format(is_numeric($v) ? floatval($v) : 0, 2, ',', '.');
+	}),
+	array('field' => 'outflow', 'title' => 'Uscita', 'print_function' => function($v) {
+		return number_format(is_numeric($v) ? floatval($v) : 0, 2, ',', '.');
+	})
 );
