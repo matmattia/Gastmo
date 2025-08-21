@@ -29,7 +29,7 @@
 						<span class="list-group-item">Nessun ordine aperto.</span>
 					<?php else : ?>
 						<?php foreach ($orders as $v) : ?>
-							<a href="<?php echo html($v['url']);?>" class="list-group-item list-group-item-warning">
+							<a href="<?php echo html($v['url']);?>" class="list-group-item list-group-item-action list-group-item-warning">
 								<h4><?php if ($v['user_ordered']) : ?><i class="bi bi-check-lg"></i> <?php endif;?><?php echo html($v['title']);?></h4>
 								<p>Data chiusura ordine: <?php echo printOrderDate($v['closing_date']);?></p>
 							</a>
@@ -44,7 +44,7 @@
 						<span class="list-group-item">Nessun ordine in consegna.</span>
 					<?php else : ?>
 						<?php foreach ($delivering_orders as $v) : ?>
-							<a href="<?php echo html($v['url']);?>" class="list-group-item list-group-item-success">
+							<a href="<?php echo html($v['url']);?>" class="list-group-item list-group-item-action list-group-item-success">
 								<h4><?php if ($v['user_ordered']) : ?><i class="bi bi-check-lg"></i> <?php endif;?><?php echo html($v['title']);?></h4>
 								<p>Data consegna: <?php echo printOrderDate($v['shipping_date']);?></p>
 							</a>
@@ -57,12 +57,12 @@
 					<h2>Ordini consegnati</h2>
 					<div class="list-group">
 						<?php foreach ($delivered_orders as $v) : ?>
-							<a href="<?php echo html($v['url']);?>" class="list-group-item list-group-item-info">
+							<a href="<?php echo html($v['url']);?>" class="list-group-item list-group-item-action list-group-item-info">
 								<h4><?php if ($v['user_ordered']) : ?><i class="bi bi-check-lg"></i> <?php endif;?><?php echo html($v['title']);?></h4>
 								<p>Data consegna: <?php echo printOrderDate($v['shipping_date']);?></p>
 							</a>
 						<?php endforeach;?>
-						<a href="/order/delivered/" class="list-group-item list-group-item-info"><i class="bi bi-chevron-right"></i> Vedi tutti gli ordini consegnati</a>
+						<a href="/order/delivered/" class="list-group-item list-group-item-action list-group-item-info"><i class="bi bi-chevron-right"></i> Vedi tutti gli ordini consegnati</a>
 					</div>
 				</div>
 			<?php endif;?>

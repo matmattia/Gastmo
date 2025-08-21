@@ -4,9 +4,8 @@
  * 
  * Questo file contiene la classe OrderPage che serve a gestire la pagina degli ordini
  * @author Mattia <info@matriz.it>
- * @package MatCMS\Gastmo
- * @link http://www.matriz.it/projects/matcms/ MatCMS
- * @link http://www.matriz.it/projects/gastmo/ Gastmo
+ * @package Gastmo
+ * @link https://www.matriz.it/projects/gastmo/ Gastmo
  */
 
 namespace Gastmo;
@@ -227,6 +226,9 @@ class OrderPage extends \ModulePage {
 						'page' => isset($this->params_url[2]) ? $this->params_url[2] : 1
 					);
 					$orders = Order::getUserOrders(null, array('status' => Order::STATUS_DELIVERED), $pagination);
+					if ($pagination['page'] > 1) {
+						$url .= $pagination['page'].'/';
+					}
 				} else {
 					$is_delivered = false;
 					$title = 'Ordini';
