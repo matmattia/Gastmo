@@ -4,7 +4,7 @@
 	<?php foreach ($totals as $v) : ?>
 		<div class="col-xs-<?php echo max($div, 6);?> col-sm-<?php echo max($div, 3);?>">
 			<section class="card">
-				<h1 class="card-header h2"><?php echo html($v['title']);?></h1>
+				<h1 class="card-header h5"><?php echo html($v['title']);?></h1>
 				<div class="card-body">
 					<p class="h2 text-center<?php if ($v['value'] < 0) : ?> text-danger<?php endif;?>"><?php echo number_format($v['value'], 2, ',', '.');?> €</p>
 				</div>

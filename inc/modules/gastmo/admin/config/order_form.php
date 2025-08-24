@@ -57,10 +57,10 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 			$data = $order->getData();
 			$fields = array(
 				array('field' => 'title', 'title' => 'Titolo', 'type' => 'print'),
-				array('field' => 'csv', 'title' => 'CSV delle quantità definitive', 'type' => 'file', 'check' => array('type' => '*.csv')),
+				array('field' => 'csv', 'title' => 'CSV delle quantitÃ  definitive', 'type' => 'file', 'check' => array('type' => '*.csv')),
 				array('field' => 'csv_delimiter', 'title' => 'Separatore campi CSV', 'value' => ';', 'attributes' => array('maxlength' => 1)),
 				array('field' => 'file_type', 'title' => 'Tipo', 'type' => 'radio', 'value' => array(
-					array('value' => 'q', 'label' => 'Quantità'),
+					array('value' => 'q', 'label' => 'QuantitÃ '),
 					array('value' => 't', 'label' => 'Totali')
 				), 'selected' => 'q'),
 				array('field' => 'status', 'title' => 'Stato', 'type' => 'radio', 'value' => array(
@@ -129,6 +129,7 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 			array('value' => Order::STATUS_DELIVERING, 'label' => 'In Consegna'),
 			array('value' => Order::STATUS_DELIVERED, 'label' => 'Consegnato')
 		)),
+		array('field' => 'archived', 'type' => 'hidden'),
 		array('field' => 'online', 'title' => 'Online', 'type' => 'onoff')
 	));
 	unset($users, $groups, $is_open);
