@@ -432,7 +432,7 @@ if (isset($_GET['export'])) {
 					$orders[$i]['user_id'] = (int)$orders[$i]['user_id'];
 					$orders[$i]['product_new_quantity'] = (float)$orders[$i]['product_new_quantity'];
 					?>
-					<tr id="product_<?php echo $orders[$i]['user_id'];?>_<?php echo $orders[$i]['product_id'];?>" class="product_<?php echo $orders[$i]['product_id'];?><?php if ($orders[$i]['product_quantity'] >= $orders[$i]['qty_package'] && $orders[$i]['product_quantity'] % $orders[$i]['qty_package'] == 0) : ?> info<?php endif;?>" data-product="<?php echo html(json_encode(array('id' => $orders[$i]['product_id'], 'user_id' => $orders[$i]['user_id'])));?>">
+					<tr id="product_<?php echo $orders[$i]['user_id'];?>_<?php echo $orders[$i]['product_id'];?>" class="product_<?php echo $orders[$i]['product_id'];?><?php if ($orders[$i]['product_quantity'] >= $orders[$i]['qty_package'] && fmod($orders[$i]['product_quantity'], $orders[$i]['qty_package']) == 0) : ?> table-info<?php endif;?>" data-product="<?php echo html(json_encode(array('id' => $orders[$i]['product_id'], 'user_id' => $orders[$i]['user_id'])));?>">
 						<td><?php echo $orders[$i]['user_id'];?></td>
 						<td><?php echo html($orders[$i]['username']);?></td>
 						<td><?php echo html($orders[$i]['name']);?></td>
