@@ -965,13 +965,11 @@ if (isset($_GET['export'])) {
 	);
 	if ($is_magazziniere) {
 		foreach ($operations as $k => $v) {
-			if (!in_array($k, array('export', 'import_qty', 'import_votes', 'votes'))) {
+			if (!in_array($k, array('export', 'import_qty', 'import_votes', 'votes', 'totals'))) {
 				unset($operations[$k]);
 			}
-			unset($k, $v);
 		}
 	}
-	unset($is_magazziniere);
 	ob_start();
 	?>
 	<script type="text/javascript">
