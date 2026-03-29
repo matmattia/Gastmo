@@ -965,7 +965,7 @@ if (isset($_GET['export'])) {
 	);
 	if ($is_magazziniere) {
 		foreach ($operations as $k => $v) {
-			if (!in_array($k, array('export', 'import_qty', 'import_votes', 'votes', 'totals'))) {
+			if (!in_array($k, array('export', 'import_qty', 'import_votes', 'votes', 'total'))) {
 				unset($operations[$k]);
 			}
 		}
