@@ -841,7 +841,7 @@ class Order extends \Base {
 					case Order::STATUS_OPEN:
 						$sql['select'] = array(
 							array('value' => '*', 'no_quote' => true),
-							array('value' => 'IF (closing_date = \'0000-00-00 00:00:00\', \'a\', closing_date)', 'no_quote' => true, 'as' => 'closing_date_order')
+							array('value' => 'IF (closing_date IS NULL, \'a\', closing_date)', 'no_quote' => true, 'as' => 'closing_date_order')
 						);
 						$sql['order'] = array(
 							'closing_date_order' => 'ASC',
@@ -851,7 +851,7 @@ class Order extends \Base {
 					case Order::STATUS_DELIVERING:
 						$sql['select'] = array(
 							array('value' => '*', 'no_quote' => true),
-							array('value' => 'IF (shipping_date = \'0000-00-00\', \'a\', shipping_date)', 'no_quote' => true, 'as' => 'shipping_date_order')
+							array('value' => 'IF (shipping_date IS NULL, \'a\', shipping_date)', 'no_quote' => true, 'as' => 'shipping_date_order')
 						);
 						$sql['order'] = array(
 							'shipping_date_order' => 'ASC',
