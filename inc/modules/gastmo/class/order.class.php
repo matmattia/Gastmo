@@ -1014,6 +1014,72 @@ class Order extends \Base {
 		return $res;
 	}
 	
+	/** 
+	 * Restituisce le categorie dell'ordine
+	 * @access public
+	 * @param integer $id ID dell'ordine (se non specificato, l'ordine dell'oggetto)
+	 * @param array $params altri parametri
+	 * @return array
+	 */
+	public function getCategories($id = null, $params = array()) {
+		$categories = array();
+		if (!is_numeric($id) || $id <= 0) {
+			$id = $this->get('id');
+		}
+		if (is_numeric($id) && $id > 0) {
+			if (!is_array($params)) {
+				$params = array();
+			}
+			$objCategory = new Category();
+			$categories = $objCategory->getList(array(
+				'where' => array(
+					array('field' => 'order', 'value' => $id)
+				),
+				'order' => array(
+					'pos' => 'ASC'
+				)
+			));
+			if (isset($params['add_products']) && $params['add_products']) {
+				foreach ($categories as $k => $v) {
+					$categories[$k]['products'] = $objCategory->getProducts($v['id']);
+				}
+			}
+		}
+		return $categories;
+	}
+	
+	/** 
+	 * Restituisce i prodotti dell'ordine
+	 * @access public
+	 * @param integer $id ID dell'ordine (se non specificato, l'ordine dell'oggetto)
+	 * @return array
+	 */
+	public function getProducts($id = null) {
+		$products = array();
+		if (!is_numeric($id) || $id <= 0) {
+			$id = $this->get('id');
+		}
+		if (is_numeric($id) && $id > 0) {
+			$objProduct = new Product();
+			$products_table = $objProduct->getTable();
+			$objCategory = new Category();
+			$categories_table = $objCategory->getTable();
+			$products = $objProduct->getList(array(
+				'join' => array(
+					$categories_table => array($categories_table.'.id', $products_table.'.category')
+				),
+				'where' => array(
+					array('field' => $categories_table.'.order', 'value' => $id)
+				),
+				'order' => array(
+					$categories_table.'.pos' => 'ASC',
+					$products_table.'.pos' => 'ASC'
+				)
+			));
+		}
+		return $products;
+	}
+	
 	/**
 	 * Verifica che un prodotto esista all'interno dell'ordine
 	 * @access public

@@ -5,8 +5,8 @@
  * Questo file contiene la classe Category che serve a gestire le categorie
  * @author Mattia <info@matriz.it>
  * @package MatCMS\Gastmo
- * @link http://www.matriz.it/projects/matcms/ MatCMS
- * @link http://www.matriz.it/projects/gastmo/ Gastmo
+ * @link https://www.matriz.it/projects/matcms/ MatCMS
+ * @link https://www.matriz.it/projects/gastmo/ Gastmo
  */
 
 namespace Gastmo;
@@ -24,7 +24,7 @@ class Category extends \Base {
 	 * @access public
 	 * @param integer $id ID della categoria
 	 */
-	function __construct($id = 0) {
+	public function __construct($id = 0) {
 		$this->table = 'categories';
 		$this->fields = array(
 			'id' => array('type' => 'autoincrement', 'key' => 'primary'),
@@ -34,5 +34,30 @@ class Category extends \Base {
 		);
 		$this->setByParams(array('id' => $id));
 		parent::__construct();
+	}
+	
+	/** 
+	 * Restituisce i prodotti della categoria
+	 * @access public
+	 * @param integer $id ID della categoria (se non specificato, la categoria dell'oggetto)
+	 * @return array
+	 */
+	public function getProducts($id = null) {
+		$products = array();
+		if (!is_numeric($id) || $id <= 0) {
+			$id = $this->get('id');
+		}
+		if (is_numeric($id) && $id > 0) {
+			$objProducts = new Product();
+			$products = $objProducts->getList(array(
+				'where' => array(
+					array('field' => 'category', 'value' => $id)
+				),
+				'order' => array(
+					'pos' => 'ASC'
+				)
+			));
+		}
+		return $products;
 	}
 }

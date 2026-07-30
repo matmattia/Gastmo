@@ -72,7 +72,6 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 		}
 	}
 } else {
-	$object = '\Gastmo\Order';
 	$user_groups = UserGroup::getUserGroups($u->get('id'), 'id');
 	if ($edit) {
 		$o = new Order($_GET['id']);
@@ -84,165 +83,229 @@ if ($u->get('level') == 'magazziniere' || isset($_GET['import_qty']) || isset($_
 	} else {
 		$is_open = true;
 	}
-	$users = $u->getList(array(
-		'select' => array(
-			array('value' => 'id', 'as' => 'value'),
-			array('value' => 'CONCAT(users_data.name, \' \', users_data.surname)', 'as' => 'label', 'no_quote' => true)
-		),
-		'join' => array(
-			'users_data' => array('cond' => array('users_data.id', 'users.id'))
-		),
-		'order' => array('label' => 'ASC')
-	));
-	$ug = new UserGroup();
-	$groups = $ug->getList(array(
-		'select' => array(array('value' => 'id', 'as' => 'value'), array('value' => 'title', 'as' => 'label')),
-		'where' => $u->get('level') == 'gestione_ordini' ? array(array('field' => 'id', 'match' => 'IN', 'value' => $user_groups)) : null,
-		'order' => array('title' => 'ASC')
-	));
-	unset($ug, $user_groups);
-	$fields = array_merge(array(
-		array('field' => 'title', 'title' => 'Titolo'),
-		array('field' => 'descr', 'title' => 'Note', 'type' => 'textarea'),
-		array('field' => 'closing_date', 'title' => 'Chiusura ordine', 'type' => 'datetime', 'default' => date('Y-m-d H:i')),
-		array('field' => 'shipping_date', 'title' => 'Data distribuzione', 'type' => 'date', 'default' => $edit ? null : date('Y-m-d'), 'can_reset' => true),
-		array('field' => 'admin', 'title' => 'Referente', 'type' => 'select', 'value' => $users, 'default' => \User::getLoggedUser())
-	), count($groups) == 1 ? array(
-		array('field' => 'user_group', 'type' => 'hidden', 'value' => $groups[0]['value']),
-		array('field' => 'user_group_print', 'title' => 'Gruppo', 'type' => 'print', 'value' => $groups[0]['label'])
-	) : array(
-		array('field' => 'user_group', 'title' => 'Gruppo', 'type' => 'select', 'value' => array_merge(
-			array(array('value' => '', 'label' => '')),
-			$groups
-		))
-	), array(
-		array('field' => 'shipping_cost', 'title' => 'Spese di spedizione', 'type' => 'number', 'attributes' => array('step' => 0.01))
-	), $is_open ? array(
-		array('field' => 'csv', 'title' => 'CSV di importazione', 'type' => 'file', 'check' => array('type' => '*.csv'), 'description' => $edit ?
-			'Ricaricando un altro file verranno cancellati e sovrascritti tutti i prodotti presenti in questo ordine.'
-			: ''),
-		array('field' => 'csv_delimiter', 'title' => 'Separatore campi CSV', 'value' => ';', 'attributes' => array('maxlength' => 1))
-	) : array(), array(
-		array('field' => 'export', 'title' => 'Esportazione', 'type' => 'hidden'),
-		array('field' => 'status', 'title' => 'Stato', 'type' => 'radio', 'value' => array(
-			array('value' => Order::STATUS_OPEN, 'label' => 'Aperto'),
-			array('value' => Order::STATUS_DELIVERING, 'label' => 'In Consegna'),
-			array('value' => Order::STATUS_DELIVERED, 'label' => 'Consegnato')
-		)),
-		array('field' => 'archived', 'type' => 'hidden'),
-		array('field' => 'online', 'title' => 'Online', 'type' => 'onoff')
-	));
-	unset($users, $groups, $is_open);
-	if ($edit) {
-		$order = new OrderExporter($_GET['id']);
-		$form_options = array('disabled' => !Order::canEdit($order));
-		$fields[] = array('field' => 'link', 'title' => 'Link', 'type' => 'custom', 'value' => '<a href="'.Order::getURL($order->get('id')).'">Visualizza ordine</a>');
-		$o = printHtmlTag('p', \Admin::printIcon('add', array(
-			'a' => array('href' => 'index.php?page=list_order&create='.$order->get('id'), 'name' => 'export'),
-			'text' => 'Nuova esportazione'
-		)));
-		$exports = $order->getExports();
-		$counter = count($exports);
-		if ($counter > 0) {
-			$export_types = $order->getExportTypes();
-			$trs = '';
-			for ($i = 0; $i < $counter; $i++) {
-				$d = strtotime($exports[$i]['date']);
-				$n = trim($exports[$i]['surname'].' '.$exports[$i]['name']);
-				$export_tds = '';
-				foreach ($export_types as $k => $v) {
-					$export_tds .= printHtmlTag(
-						'td',
-						is_array($v) && isset($v['check']) && \Valid::string($v['check']) && (!isset($exports[$i][$v['check']]) || !\Valid::string($exports[$i][$v['check']]))
-							? ''
-							: \Admin::printIcon('export', array(
-								'a' => array('href' => '/admin/index.php?page=edit_order&id='.$order->get('id').'&download_export='.$k.'&date='.$d)
-							))
+	
+	// Modifica dei prodotti
+	if ($edit && isset($_GET['operation']) && is_string($_GET['operation']) && $_GET['operation'] == 'edit_products') {
+		$use_namespace = '\Gastmo';
+		function edit_order($data) {
+			$res = false;
+			if (is_array($data) && isset($data['products']) && is_array($data['products'])) {
+				$in_transaction = \DB::transaction('in_transaction');
+				if (!$in_transaction) {
+					\DB::transaction('begin');
+				}
+				try {
+					foreach ($data['products'] as $v) {
+						if (is_array($v) && isset($v['id']) && is_numeric($v['id']) && $v['id'] > 0) {
+							$objProduct = new Product($v['id']);
+							$r = $objProduct->update($v);
+							if ($r !== true) {
+								throw new Exception('Errore nel salvataggio del prodotto.');
+							}
+						} else {
+							throw new Exception('Dati del prodotto non corretti.');
+						}
+					}
+					
+					if (!$in_transaction) {
+						\DB::transaction('commit');
+					}
+					
+					$res = true;
+				} catch (Exception $e) {
+					if ($in_transaction) {
+						throw $e;
+					} else {
+						\DB::transaction('rollback');
+					}
+					$res = false;
+				}
+			}
+			return $res;
+		}
+		
+		$objOrder = new Order($_GET['id']);
+		$title = 'Prodotti di '.$objOrder->get('title');
+		$fields = array(
+			array('field' => 'products', 'title' => 'Prodotti', 'type' => 'multi', 'fields' => array(
+				array('field' => 'products[{NUM}][id]', 'field_value' => 'id', 'type' => 'hidden'),
+				array('field' => 'products[{NUM}][title]', 'field_value' => 'title', 'title' => 'Titolo'),
+				array('field' => 'products[{NUM}][qty_package]', 'field_value' => 'qty_package', 'title' => 'Quantità Collo', 'type' => 'number', 'attributes' => array('step' => 'any')),
+				array('field' => 'products[{NUM}][um]', 'field_value' => 'um', 'title' => 'UM'),
+				array('field' => 'products[{NUM}][price]', 'field_value' => 'price', 'title' => 'Prezzo', 'type' => 'number', 'attributes' => array('step' => 'any')),
+				array('field' => 'products[{NUM}][maker]', 'field_value' => 'maker', 'title' => 'Produttore'),
+				array('field' => 'products[{NUM}][location]', 'field_value' => 'location', 'title' => 'Provincia'),
+				array('field' => 'products[{NUM}][vat]', 'field_value' => 'vat', 'title' => 'IVA', 'type' => 'number', 'attributes' => array('step' => 'any')),
+				array('field' => 'products[{NUM}][package_price]', 'field_value' => 'package_price', 'title' => 'Prezzo del collo', 'type' => 'number', 'attributes' => array('step' => 'any')),
+				array('field' => 'products[{NUM}][pos]', 'field_value' => 'pos', 'title' => 'Posizione', 'type' => 'number')
+			), 'forced_value' => $objOrder->getProducts(), 'params' => array(
+				'print_label' => false,
+				'multi_delete' => false,
+				'multi_add' => false
+			))
+		);
+	} else {
+		// Form degli ordini
+		$object = '\Gastmo\Order';
+		$users = $u->getList(array(
+			'select' => array(
+				array('value' => 'id', 'as' => 'value'),
+				array('value' => 'CONCAT(users_data.name, \' \', users_data.surname)', 'as' => 'label', 'no_quote' => true)
+			),
+			'join' => array(
+				'users_data' => array('cond' => array('users_data.id', 'users.id'))
+			),
+			'order' => array('label' => 'ASC')
+		));
+		$ug = new UserGroup();
+		$groups = $ug->getList(array(
+			'select' => array(array('value' => 'id', 'as' => 'value'), array('value' => 'title', 'as' => 'label')),
+			'where' => $u->get('level') == 'gestione_ordini' ? array(array('field' => 'id', 'match' => 'IN', 'value' => $user_groups)) : null,
+			'order' => array('title' => 'ASC')
+		));
+		unset($ug, $user_groups);
+		$fields = array_merge(array(
+			array('field' => 'title', 'title' => 'Titolo'),
+			array('field' => 'descr', 'title' => 'Note', 'type' => 'textarea'),
+			array('field' => 'closing_date', 'title' => 'Chiusura ordine', 'type' => 'datetime', 'default' => date('Y-m-d H:i')),
+			array('field' => 'shipping_date', 'title' => 'Data distribuzione', 'type' => 'date', 'default' => $edit ? null : date('Y-m-d'), 'can_reset' => true),
+			array('field' => 'admin', 'title' => 'Referente', 'type' => 'select', 'value' => $users, 'default' => \User::getLoggedUser())
+		), count($groups) == 1 ? array(
+			array('field' => 'user_group', 'type' => 'hidden', 'value' => $groups[0]['value']),
+			array('field' => 'user_group_print', 'title' => 'Gruppo', 'type' => 'print', 'value' => $groups[0]['label'])
+		) : array(
+			array('field' => 'user_group', 'title' => 'Gruppo', 'type' => 'select', 'value' => array_merge(
+				array(array('value' => '', 'label' => '')),
+				$groups
+			))
+		), array(
+			array('field' => 'shipping_cost', 'title' => 'Spese di spedizione', 'type' => 'number', 'attributes' => array('step' => 0.01))
+		), $is_open ? array(
+			array('field' => 'csv', 'title' => 'CSV di importazione', 'type' => 'file', 'check' => array('type' => '*.csv'), 'description' => $edit ?
+				'Ricaricando un altro file verranno cancellati e sovrascritti tutti i prodotti presenti in questo ordine.'
+				: ''),
+			array('field' => 'csv_delimiter', 'title' => 'Separatore campi CSV', 'value' => ';', 'attributes' => array('maxlength' => 1))
+		) : array(), array(
+			array('field' => 'export', 'title' => 'Esportazione', 'type' => 'hidden'),
+			array('field' => 'status', 'title' => 'Stato', 'type' => 'radio', 'value' => array(
+				array('value' => Order::STATUS_OPEN, 'label' => 'Aperto'),
+				array('value' => Order::STATUS_DELIVERING, 'label' => 'In Consegna'),
+				array('value' => Order::STATUS_DELIVERED, 'label' => 'Consegnato')
+			)),
+			array('field' => 'archived', 'type' => 'hidden'),
+			array('field' => 'online', 'title' => 'Online', 'type' => 'onoff')
+		));
+		unset($users, $groups, $is_open);
+		if ($edit) {
+			$order = new OrderExporter($_GET['id']);
+			$form_options = array('disabled' => !Order::canEdit($order));
+			$fields[] = array('field' => 'link', 'title' => 'Link', 'type' => 'custom', 'value' => '<a href="'.Order::getURL($order->get('id')).'">Visualizza ordine</a>');
+			$o = printHtmlTag('p', \Admin::printIcon('add', array(
+				'a' => array('href' => 'index.php?page=list_order&create='.$order->get('id'), 'name' => 'export'),
+				'text' => 'Nuova esportazione'
+			)));
+			$exports = $order->getExports();
+			$counter = count($exports);
+			if ($counter > 0) {
+				$export_types = $order->getExportTypes();
+				$trs = '';
+				for ($i = 0; $i < $counter; $i++) {
+					$d = strtotime($exports[$i]['date']);
+					$n = trim($exports[$i]['surname'].' '.$exports[$i]['name']);
+					$export_tds = '';
+					foreach ($export_types as $k => $v) {
+						$export_tds .= printHtmlTag(
+							'td',
+							is_array($v) && isset($v['check']) && \Valid::string($v['check']) && (!isset($exports[$i][$v['check']]) || !\Valid::string($exports[$i][$v['check']]))
+								? ''
+								: \Admin::printIcon('export', array(
+									'a' => array('href' => '/admin/index.php?page=edit_order&id='.$order->get('id').'&download_export='.$k.'&date='.$d)
+								))
+						);
+						unset($k, $v);
+					}
+					$trs .= printHtmlTag(
+						'tr',
+						printHtmlTag('td', date('d/m/Y H:i', $d))
+						.printHtmlTag('td', html($n == '' ? $exports[$i]['username'] : $n))
+						.$export_tds
+						.printHtmlTag('td', \Admin::printIcon('refresh', array('a' => array('onclick' => 'order_export.refresh('.$d.', this);return false;'))))
+						.printHtmlTag('td', \Admin::printIcon('add', array('a' => array(
+							'href' => _ADMINH.'index.php?page=list_order&create='.$order->get('id').'&d='.$d,
+							'title' => 'Nuova esportazione partendo da questa'
+						))))
+						.printHtmlTag('td', printHtmlTag('input', false, array(
+							'type' => 'radio',
+							'name' => 'export_date',
+							'value' => $d,
+							'checked' => $order->get('export_date') == $d
+						)))
+						.printHtmlTag('td', \Admin::printIcon('delete', array('a' => array('onclick' => 'order_export.delete('.$d.', this);return false;'))))
 					);
+					unset($d, $n);
+				}
+				unset($i);
+				$export_ths = '';
+				foreach ($export_types as $v) {
+					$export_ths .= printHtmlTag('th', isset($v['title']) ? html($v['title']) : '');
 					unset($k, $v);
 				}
-				$trs .= printHtmlTag(
+				$o .= printHtmlTag('table', printHtmlTag('thead', printHtmlTag(
 					'tr',
-					printHtmlTag('td', date('d/m/Y H:i', $d))
-					.printHtmlTag('td', html($n == '' ? $exports[$i]['username'] : $n))
-					.$export_tds
-					.printHtmlTag('td', \Admin::printIcon('refresh', array('a' => array('onclick' => 'order_export.refresh('.$d.', this);return false;'))))
-					.printHtmlTag('td', \Admin::printIcon('add', array('a' => array(
-						'href' => _ADMINH.'index.php?page=list_order&create='.$order->get('id').'&d='.$d,
-						'title' => 'Nuova esportazione partendo da questa'
-					))))
-					.printHtmlTag('td', printHtmlTag('input', false, array(
-						'type' => 'radio',
-						'name' => 'export_date',
-						'value' => $d,
-						'checked' => $order->get('export_date') == $d
-					)))
-					.printHtmlTag('td', \Admin::printIcon('delete', array('a' => array('onclick' => 'order_export.delete('.$d.', this);return false;'))))
-				);
-				unset($d, $n);
-			}
-			unset($i);
-			$export_ths = '';
-			foreach ($export_types as $v) {
-				$export_ths .= printHtmlTag('th', isset($v['title']) ? html($v['title']) : '');
-				unset($k, $v);
-			}
-			$o .= printHtmlTag('table', printHtmlTag('thead', printHtmlTag(
-				'tr',
-				printHtmlTag('th', 'Data')
-				.printHtmlTag('th', 'Utente')
-				.$export_ths
-				.printHtmlTag('th', '')
-				.printHtmlTag('th', '')
-				.printHtmlTag('th', '')
-				.printHtmlTag('th', '')
-			)).printHtmlTag('tbody', $trs), array('class' => 'table table-condensed'));
-			unset($export_ths, $trs);
-			ob_start();
-			?>
-			<script type="text/javascript">
-			var order_export = {
-				'refresh': function(d, el) {
-					admin.ajaxOperation({
-						'url': _ROOT  + 'index.php?page=edit_order',
-						'data': {
-							'id': <?php echo $order->get('id');?>,
-							'refresh_export': d
-						}
-					}, {
-						'onSuccess': function() {
-							window.location.reload();
-						}
-					});
-				},
-				'delete': function(d, el) {
-					if (confirm('Sei sicuro di voler cancellare questa esportazione?')) {
+					printHtmlTag('th', 'Data')
+					.printHtmlTag('th', 'Utente')
+					.$export_ths
+					.printHtmlTag('th', '')
+					.printHtmlTag('th', '')
+					.printHtmlTag('th', '')
+					.printHtmlTag('th', '')
+				)).printHtmlTag('tbody', $trs), array('class' => 'table table-condensed'));
+				unset($export_ths, $trs);
+				ob_start();
+				?>
+				<script type="text/javascript">
+				var order_export = {
+					'refresh': function(d, el) {
 						admin.ajaxOperation({
 							'url': _ROOT  + 'index.php?page=edit_order',
 							'data': {
 								'id': <?php echo $order->get('id');?>,
-								'delete_export': d
+								'refresh_export': d
 							}
 						}, {
 							'onSuccess': function() {
-								var tr = el.closest('tr');
-								if (tr) {
-									tr.remove();
-								}
+								window.location.reload();
 							}
 						});
+					},
+					'delete': function(d, el) {
+						if (confirm('Sei sicuro di voler cancellare questa esportazione?')) {
+							admin.ajaxOperation({
+								'url': _ROOT  + 'index.php?page=edit_order',
+								'data': {
+									'id': <?php echo $order->get('id');?>,
+									'delete_export': d
+								}
+							}, {
+								'onSuccess': function() {
+									var tr = el.closest('tr');
+									if (tr) {
+										tr.remove();
+									}
+								}
+							});
+						}
 					}
-				}
-			};
-			</script>
-			<?php
-			$page->setHeadInclude(ob_get_contents());
-			ob_end_clean();
+				};
+				</script>
+				<?php
+				$page->setHeadInclude(ob_get_contents());
+				ob_end_clean();
+			}
+			unset($counter, $exports, $order);
+			$fields[] = array('field' => 'export_date', 'type' => 'hidden', 'value' => 0);
+			$fields[] = array('field' => 'exports', 'title' => 'Esportazione', 'type' => 'custom', 'value' => $o);
+			unset($o);
 		}
-		unset($counter, $exports, $order);
-		$fields[] = array('field' => 'export_date', 'type' => 'hidden', 'value' => 0);
-		$fields[] = array('field' => 'exports', 'title' => 'Esportazione', 'type' => 'custom', 'value' => $o);
-		unset($o);
 	}
 }
-unset($u);
